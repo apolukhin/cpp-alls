@@ -1,0 +1,6 @@
+include_directories("../include")
+
+
+set(BOOST_ROOT "~/boost_maintain/boost/")
+set(Boost_NO_SYSTEM_PATHS ON)
+set(Boost_USE_STATIC_LIBS ON)
