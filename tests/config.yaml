@@ -1,3 +1,6 @@
+apps-path: ../src/apps/logger/
+server-logger: "main_logger"
+
 applications:
     - name: "boost_logger"
-      instance: "main_logger"
+      instance-name: "main_logger"
