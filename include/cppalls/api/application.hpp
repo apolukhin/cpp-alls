@@ -2,6 +2,7 @@
 #define CPPALLS_API_APPLICATION_HPP
 
 #include <memory>
+#include <yaml-cpp/node/node.h>
 
 namespace cppalls { namespace api {
 
@@ -19,6 +20,13 @@ public:
     virtual version_t version() const noexcept {
         version_t v = { 0, 1, 0 };
         return v;
+    }
+
+    virtual void start(const YAML::Node& config) = 0;
+    virtual void stop() = 0;
+    virtual void restart(const YAML::Node& config) {
+        stop();
+        start(config);
     }
 };
 

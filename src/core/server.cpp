@@ -47,7 +47,7 @@ namespace {
         filesystem::directory_iterator end;
         system::error_code error;
         filesystem::directory_iterator it(
-            config["apps-path"].as<std::string>(default_apps_dir)
+            config["core"]["apps-path"].as<std::string>(default_apps_dir)
         );
 
 
@@ -93,13 +93,15 @@ void server::init(int argc, const char * const *argv) {
     fill_apps_to_path(config, oss);
 
     for (auto&& app_node : config["applications"]) {
-        const auto app_name = app_node["name"].as<std::string>();
+        const auto app_name = app_node["type"].as<std::string>();
         dll::shared_library lib(app_to_path_[app_name]);
         auto app = lib.get_alias<api::application::constructor_t>(app_name)();
         std::shared_ptr<api::application> shared_app(
             app.release(),
             ptr_holding_application_deleter(std::move(lib))
         );
+
+        shared_app->start(app_node["params"]);
 
         instances_.insert(std::make_pair(
             app_node["instance-name"].as<std::string>(),
@@ -112,8 +114,8 @@ void server::init(int argc, const char * const *argv) {
     }
 
     oss << '\n';
-    if (config["server-logger"]) {
-        auto log = get<api::logger>(config["server-logger"].as<std::string>());
+    if (config["core"]["logger"]) {
+        auto log = get<api::logger>(config["core"]["logger"].as<std::string>());
         log->log(api::logger::ERROR, oss.str().c_str());
     } else {
         std::cerr << oss;
@@ -132,13 +134,21 @@ std::vector<std::string> server::list_apps() {
 }
 
 
-std::shared_ptr<api::application> server::get(const std::string& instance_name) {
-    return instances_.at(instance_name);
+std::shared_ptr<api::application> server::get(const char* instance_name) {
+    auto it = instances_.find(instance_name);
+    if (it == instances_.end()) {
+        boost::throw_exception(std::logic_error(
+            "Faild to get() application with instance-name = '" + std::string(instance_name) + "'"
+        ));
+    }
+
+    return it->second;
 }
 
-std::shared_ptr<api::application> server::get(const char* instance_name) {
-    return instances_.at(instance_name);
+std::shared_ptr<api::application> server::get(const std::string& instance_name) {
+    return get(instance_name.c_str());
 }
+
 
 } // namespace cppalls
 

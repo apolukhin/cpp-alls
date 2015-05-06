@@ -18,11 +18,23 @@ TEST(server, construction) {
 }
 
 TEST(server, app_instance) {
-    std::shared_ptr<api::logger> l1 = server::get<api::logger>("main_logger");
-    auto l2 = server::get("main_logger");
+    std::shared_ptr<api::logger> l1 = server::get<api::logger>("warning_logger");
+    auto l2 = server::get("warning_logger");
 
     ASSERT_TRUE(l1->version() == l2->version());
+    ASSERT_TRUE(l1 == l2);
     LINFO(*l1) << "Works!";
+
+
+    std::shared_ptr<api::logger> l1_deb = server::get<api::logger>("debug_logger");
+    auto l2_deb = server::get("debug_logger");
+
+
+    ASSERT_TRUE(l1_deb->version() == l2_deb->version());
+    ASSERT_TRUE(l1_deb == l2_deb);
+    ASSERT_TRUE(l1 != l1_deb);
+    ASSERT_TRUE(l2 != l2_deb);
+    LINFO(*l1_deb) << "Works!";
 }
 
 int main(int argc, char **argv) {
