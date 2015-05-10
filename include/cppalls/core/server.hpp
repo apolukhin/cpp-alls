@@ -1,16 +1,21 @@
 #ifndef CPPALLS_CORE_SERVER_HPP
 #define CPPALLS_CORE_SERVER_HPP
 
-#include <boost/dll.hpp>
-#include <boost/utility/string_ref.hpp>
 #include <unordered_map>
 #include <typeinfo>
 
 #include "cppalls/api/application.hpp"
 
+#ifdef cppalls_core_EXPORTS
+#   include <boost/config.hpp>
+#   define CORE_EXPORT BOOST_SYMBOL_EXPORT
+#else
+#   define CORE_EXPORT
+#endif
+
 namespace cppalls {
 
-struct server {
+struct CORE_EXPORT server {
     // this class must not be instantiated
     server() = delete;
     ~server() = delete;

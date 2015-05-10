@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 2.6)
 include("../../misc/configs.txt")
 
-add_library(cppalls_core
+add_library(cppalls_core SHARED
 
     ../../include/cppalls/core/server.hpp
     ../../include/cppalls/core/logging.hpp
@@ -10,6 +10,7 @@ add_library(cppalls_core
     ../../include/cppalls/api/logger.hpp
 
     server.cpp
+    cpp_logger.cpp
 )
 
 target_link_libraries(cppalls_core boost_filesystem boost_program_options yaml-cpp dl)

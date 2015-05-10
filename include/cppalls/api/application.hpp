@@ -24,7 +24,7 @@ public:
 
     virtual void start(const YAML::Node& config) = 0;
     virtual void stop() = 0;
-    virtual void restart(const YAML::Node& config) {
+    virtual void reload(const YAML::Node& config) {
         stop();
         start(config);
     }

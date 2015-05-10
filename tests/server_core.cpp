@@ -10,7 +10,7 @@ using namespace cppalls;
 struct server_guard {
     server_guard() {
         const int argc = 2;
-        const char* const argv[2] = {"test_all", "--config=../../cpp-alls/tests/config.yaml"};
+        const char* const argv[2] = {"test_all", "--config=../../cpp-alls/tests/server_core_config.yaml"};
         server::start(argc, argv);
     }
 
@@ -25,16 +25,18 @@ struct fake_api : api::application {
 };
 
 
-TEST(server, start_stop) {
+TEST(server, basic_start_stop_reload) {
     server_guard guard;
 
     auto apps = server::available_apps();
     ASSERT_TRUE(!apps.empty());
     ASSERT_TRUE(apps == server::available_apps());
 
-    ASSERT_TRUE(!!server::get<api::logger>("warning_logger"));
+    auto logger_app = server::get<api::logger>("warning_logger");
+    ASSERT_TRUE(!!logger_app);
     EXPECT_THROW(!!server::get<fake_api>("warning_logger"), error_runtime);
     EXPECT_THROW(!!server::get<api::logger>("app_that_does_not_exist"), error_runtime);
+
 
     server::stop();
     ASSERT_TRUE(server::available_apps().empty());
@@ -42,8 +44,43 @@ TEST(server, start_stop) {
     EXPECT_THROW(!!server::get<api::logger>("warning_logger"), error_runtime);
     EXPECT_THROW(!!server::get<fake_api>("warning_logger"), error_runtime);
     EXPECT_THROW(!!server::get<api::logger>("app_that_does_not_exist"), error_runtime);
+
+
+    server::reload();
+    // servr was stopped, so old app != new app
+    ASSERT_TRUE(logger_app != server::get<api::logger>("warning_logger"));
+    ASSERT_TRUE(apps == server::available_apps());
+    ASSERT_TRUE(!!server::get<api::logger>("warning_logger"));
+    EXPECT_THROW(!!server::get<fake_api>("warning_logger"), error_runtime);
+    EXPECT_THROW(!!server::get<api::logger>("app_that_does_not_exist"), error_runtime);
+
+
+    const char* const argv[2] = {"test_all", "--config=../../cpp-alls/tests/server_core_config_cerr.yaml"};
+    server::reload(2, argv);
+    // server was stopped, so old app != new app
+    ASSERT_TRUE(logger_app != server::get<api::logger>("warning_logger"));
+    ASSERT_TRUE(apps == server::available_apps());
+    ASSERT_TRUE(!!server::get<api::logger>("warning_logger"));
+    EXPECT_THROW(!!server::get<fake_api>("warning_logger"), error_runtime);
+    EXPECT_THROW(!!server::get<api::logger>("app_that_does_not_exist"), error_runtime);
 }
 
+TEST(server, reload_same_apps) {
+    server_guard guard;
+    auto logger_app = server::get<api::logger>("warning_logger");
+
+    server::reload();
+    // Server was not stopped, so new app == old app
+    ASSERT_TRUE(logger_app == server::get<api::logger>("warning_logger"));
+    EXPECT_THROW(!!server::get<api::logger>("__basic-logger"), error_runtime);
+
+
+    const char* const argv[2] = {"test_all", "--config=../../cpp-alls/tests/server_core_config_cerr.yaml"};
+    server::reload(2, argv);
+    // Server was not stopped, so new app == old app
+    ASSERT_TRUE(logger_app == server::get<api::logger>("warning_logger"));
+    ASSERT_TRUE(server::get<api::logger>("__basic-logger") != server::get<api::logger>("warning_logger"));
+}
 
 
 TEST(server, app_instance) {
