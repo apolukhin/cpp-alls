@@ -2,7 +2,7 @@
 #define CPPALLS_LOGGING_HPP
 
 #include <sstream>
-#include "api/logger.hpp"
+#include "cppalls/api/logger.hpp"
 
 namespace cppalls { namespace detail {
 
