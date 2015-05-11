@@ -10,6 +10,7 @@ namespace {
 
 class cpp_logger final: public cppalls::api::logger {
     std::ostream* logger_;
+    cppalls::api::logger::severity_level lvl_;
 
     const char* severity(cppalls::api::logger::severity_level lvl) {
         switch (lvl) {
@@ -23,7 +24,10 @@ class cpp_logger final: public cppalls::api::logger {
     }
 
 public:
-    cpp_logger() {}
+    cpp_logger()
+        : logger_(&std::cerr)
+        , lvl_(cppalls::api::logger::INFO)
+    {}
 
     void start(const YAML::Node& config) override {
         const auto sink = config["sink"].as<std::string>("cerr");
@@ -43,7 +47,9 @@ public:
     }
 
     void log(cppalls::api::logger::severity_level lvl, const char* msg) override {
-        *logger_ << severity(lvl) << msg << '\n';
+        if (lvl >= lvl_) {
+            *logger_ << severity(lvl) << msg << '\n';
+        }
     }
 
     static std::unique_ptr<cpp_logger> create() {

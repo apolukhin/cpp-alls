@@ -3,6 +3,7 @@
 #include "cppalls/api/logger.hpp"
 
 #include <boost/filesystem/operations.hpp>
+#include <boost/filesystem/path.hpp>
 #include <boost/program_options.hpp>
 #include <yaml-cpp/yaml.h>
 #include <iostream>
@@ -138,13 +139,29 @@ namespace {
             log_ = server::get<api::logger>("__basic-logger");
         }
 
+
+        YAML::Node read_config() const {
+            YAML::Node config;
+
+            try {
+                config = YAML::LoadFile(config_path_);
+            } catch (const std::exception& e) {
+                boost::throw_exception(error_runtime(
+                    "Error while loading configuration file '" + config_path_ +  "' from directory '" + dll::program_location().parent_path().string()
+                        + "'\n    " + e.what()
+                ));
+            }
+
+            return std::move(config);
+        }
+
     public:
         server_impl_t()
             : config_path_(default_config_path)
         {}
 
         void start() {
-            YAML::Node config = YAML::LoadFile(config_path_);
+            YAML::Node config = read_config();
 
             std::ostringstream oss;
             fill_apps_to_path(config, oss, app_to_path_);
@@ -198,7 +215,7 @@ namespace {
         }
 
         void reload() {
-            YAML::Node config = YAML::LoadFile(config_path_);
+            YAML::Node config = read_config();
 
             std::ostringstream oss;
             app_to_path_t new_app_to_path;
