@@ -27,6 +27,7 @@ public:
     boost_logger() {}
 
     void start(const YAML::Node& config) override {
+
         std::stringstream oss;
 
         if (config["Core"]) {
@@ -41,6 +42,8 @@ public:
                 start_helper(oss, sinks_it->second);
             }
         }
+
+        //logger_.set_attributes();
 
         boost::log::init_from_stream(oss);
     }

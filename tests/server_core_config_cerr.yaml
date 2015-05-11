@@ -1,31 +1,5 @@
-applications:
-    - type: "boost_logger"
-      instance-name: "warning_logger"
-      params:
-            Core:
-                Filter: "%Severity% >= warning"
-                DisableLogging: false
-            Sinks: &boost_logger_common
-                Main:
-                    Destination: Console
-                    AutoFlush: true
-
-    - type: "boost_logger"
-      instance-name: "debug_logger"
-      params:
-            Core:
-                Filter: "%Severity% >= debug"
-                DisableLogging: false
-            Sinks: *boost_logger_common
-
-    - type: "boost_logger"
-      instance-name: "info_logger"
-      params:
-            Core:
-                Filter: "%Severity% >= info"
-                DisableLogging: false
-            Sinks: *boost_logger_common
-
 core:
-    apps-path: ../src/apps/logger/
+    apps-path: ../../build-cpp-alls-Desktop-Default/src/apps/logger/
+    #logger: trace_logger
+    configs: [ server_core_confs/010_boost_loggers.yaml, server_core_confs ]
 

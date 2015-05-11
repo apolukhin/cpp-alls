@@ -12,7 +12,13 @@ class logger_stream: public std::ostringstream {
     const api::logger::severity_level lvl_;
 public:
 
-    explicit logger_stream(api::logger& log, api::logger::severity_level lvl)
+    template <class T>
+    explicit logger_stream(const std::shared_ptr<T>& log, api::logger::severity_level lvl)
+        : log_(*log)
+        , lvl_(lvl)
+    {}
+
+    explicit logger_stream(api::logger& log, api::logger::severity_level lvl) noexcept
         : log_(log)
         , lvl_(lvl)
     {}

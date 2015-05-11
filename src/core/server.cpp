@@ -1,5 +1,6 @@
 #include "cppalls/core/server.hpp"
 #include "cppalls/core/exceptions.hpp"
+#include "cppalls/core/logging.hpp"
 #include "cppalls/api/logger.hpp"
 
 #include <boost/filesystem/operations.hpp>
@@ -68,7 +69,7 @@ namespace {
             return std::move(config_path);
         }
 
-        static void fill_apps_to_path(const YAML::Node& config, std::ostringstream& oss, app_to_path_t& app_to_path) {
+        void fill_apps_to_path(const YAML::Node& config, std::ostringstream& oss, app_to_path_t& app_to_path) const {
             static const std::string default_apps_dir = "./apps/";
 
             dll::library_info info(dll::this_line_location());
@@ -77,14 +78,13 @@ namespace {
                 app_to_path.emplace(std::move(app), dll::this_line_location());
             }
 
-            filesystem::directory_iterator end;
+            filesystem::path p(config["core"]["apps-path"].as<std::string>(default_apps_dir));
+            if (p.is_relative()) {
+                p =  boost::filesystem::path(config_path_).parent_path() / p;
+            }
+
             system::error_code error;
-            filesystem::directory_iterator it(
-                config["core"]["apps-path"].as<std::string>(default_apps_dir)
-            );
-
-
-            for (; it != end; ++it) {
+            for (filesystem::directory_iterator it(p), end; it != end; ++it) {
                 if (filesystem::is_directory(*it, error) || error) {
                     continue;
                 }
@@ -132,19 +132,59 @@ namespace {
 
             YAML::Node node = YAML::Load(
                 "type: cpp_logger\n"
-                "instance-name: __basic-logger"
+                "instance-name: __basic-logger\n"
+                "params: {severity: error}\n"
             );
 
             start_instance(node, app_to_path_, instances_);
             log_ = server::get<api::logger>("__basic-logger");
         }
 
+        void read_single_config_file(const std::string& file_or_path, YAML::Node& config_to_patch) const {
+            boost::filesystem::path p(file_or_path);
+            if (p.is_relative()) {
+                p =  boost::filesystem::path(config_path_).parent_path() / p;
+            }
+
+            system::error_code error;
+            if (filesystem::is_directory(p, error) && !error) {
+                for (filesystem::recursive_directory_iterator it(p), end; it != end; ++it) {
+                    if (filesystem::is_directory(*it, error) || error) {
+                        continue;
+                    }
+
+                    auto another_conf = YAML::LoadFile(it->path().string());
+                    for (auto&& app : another_conf["applications"]) {
+                        config_to_patch["applications"].push_back(std::move(app));
+                    }
+                }
+            }
+
+            if (filesystem::is_regular_file(p, error) && !error) {
+                auto another_conf = YAML::LoadFile(p.string());
+                for (auto&& app : another_conf["applications"]) {
+                    config_to_patch["applications"].push_back(std::move(app));
+                }
+            }
+        }
 
         YAML::Node read_config() const {
             YAML::Node config;
 
             try {
                 config = YAML::LoadFile(config_path_);
+
+
+                if (config["core"]["configs"]) {
+                    if (config["core"]["configs"].IsSequence()) {
+                        for (auto&& conf : config["core"]["configs"]) {
+                            read_single_config_file(conf.as<std::string>(), config);
+                        }
+                    } else {
+                        read_single_config_file(config["core"]["configs"].as<std::string>(), config);
+                    }
+
+                }
             } catch (const std::exception& e) {
                 boost::throw_exception(error_runtime(
                     "Error while loading configuration file '" + config_path_ +  "' from directory '" + dll::program_location().parent_path().string()
@@ -161,7 +201,7 @@ namespace {
         {}
 
         void start() {
-            YAML::Node config = read_config();
+            const YAML::Node config = read_config();
 
             std::ostringstream oss;
             fill_apps_to_path(config, oss, app_to_path_);
@@ -215,7 +255,7 @@ namespace {
         }
 
         void reload() {
-            YAML::Node config = read_config();
+            const YAML::Node config = read_config();
 
             std::ostringstream oss;
             app_to_path_t new_app_to_path;
@@ -252,6 +292,9 @@ namespace {
                 oss << '\n';
                 log_->log(api::logger::WARNING, oss.str().c_str());
             }
+
+
+            LDEBUG(*log_) << "Resulting confilg file is following:\n" << config;
         }
 
         void reload(int argc, const char * const *argv) {

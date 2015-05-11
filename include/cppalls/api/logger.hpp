@@ -9,12 +9,12 @@ namespace cppalls { namespace api {
 class logger: public application {
 public:
     enum severity_level {
-        TRACE,
-        DEBUG,
-        INFO,
-        WARNING,
-        ERROR,
-        FATAL
+        TRACE = 0,
+        DEBUG = 1,
+        INFO = 2,
+        WARNING = 3,
+        ERROR = 4,
+        FATAL = 5
     };
 
     virtual void log(severity_level lvl, const char* msg) = 0;
