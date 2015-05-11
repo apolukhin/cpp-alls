@@ -1,5 +1,5 @@
 core:
-    apps-path: ../../build-cpp-alls-Desktop-Default/src/apps/logger/
+    binaries: ../../build-cpp-alls-Desktop-Default/src/apps/logger/
     #logger: trace_logger
     configs: [ server_core_confs/010_boost_loggers.yaml, server_core_confs ]
 

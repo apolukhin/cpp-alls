@@ -5,6 +5,7 @@
 
 #include <boost/filesystem/operations.hpp>
 #include <boost/filesystem/path.hpp>
+#include <boost/container/small_vector.hpp>
 #include <boost/program_options.hpp>
 #include <yaml-cpp/yaml.h>
 #include <iostream>
@@ -69,6 +70,38 @@ namespace {
             return std::move(config_path);
         }
 
+        void find_apps_in_entry(const std::string& entry, std::ostringstream& oss, app_to_path_t& app_to_path) const {
+            filesystem::path p(entry);
+            if (p.is_relative()) {
+                p =  boost::filesystem::path(config_path_).parent_path() / p;
+            }
+
+            const auto search_in_binary = [&app_to_path, &oss](const filesystem::path& p) {
+                try {
+                    dll::library_info info(p);
+                    auto apps = info.symbols("cppalls");
+                    for (auto& app: apps) {
+                        app_to_path.emplace(std::move(app), p);
+                    }
+                } catch (const std::exception& e) {
+                    oss << "\nFailed opening plugin `" << p << "`: " << e.what();
+                }
+            };
+
+            system::error_code error;
+            for (filesystem::directory_iterator it(p), end; it != end; ++it) {
+                if (filesystem::is_directory(*it, error) || error) {
+                    continue;
+                }
+
+                search_in_binary(*it);
+            }
+
+            if (filesystem::is_regular_file(p, error) && !error) {
+                search_in_binary(p);
+            }
+        }
+
         void fill_apps_to_path(const YAML::Node& config, std::ostringstream& oss, app_to_path_t& app_to_path) const {
             static const std::string default_apps_dir = "./apps/";
 
@@ -78,26 +111,19 @@ namespace {
                 app_to_path.emplace(std::move(app), dll::this_line_location());
             }
 
-            filesystem::path p(config["core"]["apps-path"].as<std::string>(default_apps_dir));
-            if (p.is_relative()) {
-                p =  boost::filesystem::path(config_path_).parent_path() / p;
-            }
-
-            system::error_code error;
-            for (filesystem::directory_iterator it(p), end; it != end; ++it) {
-                if (filesystem::is_directory(*it, error) || error) {
-                    continue;
+            YAML::Node bins = config["core"]["binaries"];
+            if (bins.IsScalar()) {
+                find_apps_in_entry(bins.as<std::string>(), oss, app_to_path);
+            } else if (bins.IsSequence()) {
+                for (auto&& v : bins) {
+                    find_apps_in_entry(v.as<std::string>(), oss, app_to_path);
                 }
-
-                try {
-                    dll::library_info info(*it);
-                    auto apps = info.symbols("cppalls");
-                    for (auto& app: apps) {
-                        app_to_path.emplace(std::move(app), *it);
-                    }
-                } catch (const std::exception& e) {
-                    oss << "\nFailed opening plugin `" << *it << "`: " << e.what();
-                }
+            } else if (!bins) {
+                find_apps_in_entry(default_apps_dir, oss, app_to_path);
+            } else {
+                boost::throw_exception(error_runtime(
+                    "Invalid configuration for `core: binaries:` section. Binaries must be a sinle path to binaries or a sequence of paths [path1, path2]"
+                ));
             }
         }
 
@@ -146,22 +172,25 @@ namespace {
                 p =  boost::filesystem::path(config_path_).parent_path() / p;
             }
 
+            boost::container::small_vector<std::string, 64> configs;
             system::error_code error;
             if (filesystem::is_directory(p, error) && !error) {
-                for (filesystem::recursive_directory_iterator it(p), end; it != end; ++it) {
+                for (filesystem::directory_iterator it(p), end; it != end; ++it) {
                     if (filesystem::is_directory(*it, error) || error) {
                         continue;
                     }
 
-                    auto another_conf = YAML::LoadFile(it->path().string());
-                    for (auto&& app : another_conf["applications"]) {
-                        config_to_patch["applications"].push_back(std::move(app));
-                    }
+                    configs.emplace_back(it->path().string());
                 }
             }
 
             if (filesystem::is_regular_file(p, error) && !error) {
-                auto another_conf = YAML::LoadFile(p.string());
+                configs.emplace_back(p.string());
+            }
+
+            std::sort(configs.begin(), configs.end());
+            for (auto&& conf_path : configs) {
+                auto another_conf = YAML::LoadFile(conf_path);
                 for (auto&& app : another_conf["applications"]) {
                     config_to_patch["applications"].push_back(std::move(app));
                 }
