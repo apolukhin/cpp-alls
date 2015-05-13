@@ -1,20 +1,22 @@
 applications:
-    - type: "boost_logger"
-      instance-name: "warning_logger"
+    - type: "boost_logger_core"
       params:
             Core:
                 DisableLogging: false
-            Sinks: &boost_logger_common
+            Sinks:
                 Main:
-                    Filter: "%Severity% >= warning"
                     Destination: Console
+                    Format: "%TimeStamp% %Severity% [%Channel% %tag%]: %Message%"
+                    Filter: "%tag% = qwe or %Severity% >= INFO"
                     AutoFlush: true
+
+    - type: "boost_logger"
+      instance-name: "warning_logger"
+      params:
+            tag: "warning-logger"
 
     - type: "boost_logger"
       instance-name: "debug_logger"
       params:
-            Core:
-                Filter: "%Severity% >= debug"
-                DisableLogging: false
-            Sinks: *boost_logger_common
+            tag: "debug-logger"
 

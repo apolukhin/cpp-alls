@@ -145,7 +145,7 @@ namespace {
             shared_app->start(app_node["params"]);
 
             instances.insert(std::make_pair(
-                app_node["instance-name"].as<std::string>(),
+                app_node["instance-name"].as<std::string>(app_type),
                 std::move(shared_app)
             ));
         }
@@ -297,7 +297,12 @@ namespace {
 
             instances_t new_instances;
             for (auto&& app_node : config["applications"]) {
-                auto instance = app_node["instance-name"].as<std::string>();
+
+                auto instance = (
+                    app_node["instance-name"]
+                    ? app_node["instance-name"].as<std::string>()
+                    : app_node["type"].as<std::string>()
+                );
                 auto instance_it = instances_.find(instance);
                 if (instance_it == instances_.cend()) {
                     start_instance(app_node, new_app_to_path, new_instances);
