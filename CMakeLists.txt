@@ -3,3 +3,4 @@ include ("./misc/configs.txt")
 
 add_subdirectory("src")
 add_subdirectory("tests")
+

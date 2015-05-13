@@ -6,9 +6,16 @@
 
 namespace cppalls { namespace api {
 
-class application {
+class application: public std::enable_shared_from_this<application> {
 public:
     typedef std::unique_ptr<application>(constructor_t)();
+
+    application() = default;
+    application(const application&) = delete;
+    application(application&&) = delete;
+    application& operator=(const application&) = delete;
+    application& operator=(application&&) = delete;
+
     virtual ~application() noexcept {}
 
     struct version_t {
@@ -18,7 +25,7 @@ public:
     };
 
     virtual version_t version() const noexcept {
-        version_t v = { 0, 1, 0 };
+        const version_t v = { 0, 1, 0 };
         return v;
     }
 
