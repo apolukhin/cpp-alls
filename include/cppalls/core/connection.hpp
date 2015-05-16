@@ -3,6 +3,8 @@
 
 #include "request.hpp"
 #include "response.hpp"
+#include <functional>
+#include <system_error>
 
 namespace cppalls {
 
@@ -21,16 +23,16 @@ public:
     virtual void async_read(callback_t&&, std::size_t size) = 0;
     virtual void async_write(callback_t&&) = 0;
     virtual void close() = 0;
-    virtual request& request() noexcept = 0;
-    virtual response& response() noexcept = 0;
+    virtual cppalls::request& request() noexcept = 0;
+    virtual cppalls::response& response() noexcept = 0;
 
     template <class T>
-    request& operator>>(const T& val) {
+    cppalls::request& operator>>(const T& val) {
         return request() >> val;
     }
 
     template <class T>
-    response& operator<<(const T& val) {
+    cppalls::response& operator<<(const T& val) {
         return response() >> val;
     }
 };
