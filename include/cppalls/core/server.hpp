@@ -20,14 +20,12 @@ struct CORE_EXPORT server {
     server() = delete;
     ~server() = delete;
 
-
-    static void start();
-    static void start(int argc, const char * const *argv);
+    static void start(const char* path_to_config = "./config.yaml");
 
     static void stop();
 
     static void reload();
-    static void reload(int argc, const char * const *argv);
+    static void reload(const char* path_to_config);
 
     static std::vector<std::string> available_apps();
 

@@ -7,8 +7,9 @@ applications:
                 Main:
                     Destination: Console
                     Format: "%TimeStamp% %Severity% [%Channel% %tag%]: %Message%"
-                    Filter: "%tag% = error-logger"
+                    Filter: "%tag% = ignoreiologger"
                     AutoFlush: true
+                    Async: true
 
     - type: "boost_logger"
       instance-name: "core_logger"

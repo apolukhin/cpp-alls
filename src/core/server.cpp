@@ -33,7 +33,6 @@ namespace {
     };
 
 
-    static const char default_config_path[] = "config.yaml";
 
     class server_impl_t {
         typedef std::unordered_map<std::string, boost::filesystem::path>            app_to_path_t;
@@ -45,6 +44,7 @@ namespace {
         std::shared_ptr<api::logger>    log_;
 
         static inline std::string get_config_location_or_die_helping(int argc, const char * const *argv) {
+            static const char default_config_path[] = "config.yaml";
             namespace po = boost::program_options;
             std::string config_path;
 
@@ -229,7 +229,7 @@ namespace {
 
     public:
         server_impl_t()
-            : config_path_(default_config_path)
+            : config_path_()
         {}
 
         void start() {
@@ -251,8 +251,8 @@ namespace {
             }
         }
 
-        void start(int argc, const char * const *argv) {
-            config_path_ = get_config_location_or_die_helping(argc, argv);
+        void start(const char* path_to_config) {
+            config_path_ = path_to_config;
             start();
         }
 
@@ -335,8 +335,8 @@ namespace {
             LDEBUG(*log_) << "Resulting confilg file is following:\n" << config;
         }
 
-        void reload(int argc, const char * const *argv) {
-            config_path_ = get_config_location_or_die_helping(argc, argv);
+        void reload(const char* path_to_config) {
+            config_path_ = path_to_config;
             reload();
         }
 
@@ -349,12 +349,8 @@ namespace {
     server_impl_t server_impl;
 }
 
-void server::start() {
-    server_impl.start();
-}
-
-void server::start(int argc, const char * const *argv) {
-    server_impl.start(argc, argv);
+void server::start(const char* path_to_config) {
+    server_impl.start(path_to_config);
 }
 
 void server::stop() {
@@ -365,8 +361,8 @@ void server::reload() {
     server_impl.reload();
 }
 
-void server::reload(int argc, const char * const *argv) {
-    server_impl.reload(argc, argv);
+void server::reload(const char* path_to_config) {
+    server_impl.reload(path_to_config);
 }
 
 std::vector<std::string> server::available_apps() {

@@ -1,0 +1,6 @@
+applications:
+    - type: "boost_io_service"
+      instance-name: io
+      params:
+            logger: iologger
+            threads: 20

@@ -8,28 +8,28 @@ namespace cppalls { namespace detail {
 
 class logger_stream: public std::ostringstream {
     typedef std::ostringstream base_t;
-    api::logger& log_;
+    api::logger* log_;
     const api::logger::severity_level lvl_;
 public:
 
     template <class T>
     explicit logger_stream(const std::shared_ptr<T>& log, api::logger::severity_level lvl)
-        : log_(*log)
+        : log_(log.get())
         , lvl_(lvl)
     {}
 
     explicit logger_stream(api::logger& log, api::logger::severity_level lvl) noexcept
-        : log_(log)
+        : log_(&log)
         , lvl_(lvl)
     {}
 
     ~logger_stream() {
-        if (base_t::str().empty()) {
+        if (base_t::str().empty() || ! log_) {
             return;
         }
 
         try {
-            log_.log(lvl_, base_t::str().c_str());
+            log_->log(lvl_, base_t::str().c_str());
         } catch (...) {}
     }
 };

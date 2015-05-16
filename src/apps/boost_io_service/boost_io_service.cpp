@@ -23,12 +23,14 @@ class boost_io_service final: public cppalls::api::io_service_provider {
     typedef unsigned short          threads_count_t;
     std::atomic<threads_count_t>    required_threads_count_;
 
-    boost_io_service() {}
+    boost_io_service() noexcept
+        : required_threads_count_(0)
+    {}
 
-    void run(threads_count_t thread_index) noexcept {
+    void run(const threads_count_t thread_index) noexcept {
         LINFO(log_) << "Started thread with index = " << thread_index;
 
-        while (required_threads_count_.load(std::memory_order_relaxed) > thread_index) {
+        while (required_threads_count_.load(/*std::memory_order_relaxed*/) > thread_index) {
             try {
                 const bool is_stopped = !io_service_.run_one();
                 if (is_stopped) {
@@ -40,6 +42,8 @@ class boost_io_service final: public cppalls::api::io_service_provider {
                 LERROR(log_) << "Exception while processing tasks in boost_io_service:" << boost::current_exception_diagnostic_information();
             }
         }
+
+        LINFO(log_) << "Stopped thread with index = " << thread_index;
     }
 
     static threads_count_t get_threads_count(const YAML::Node& config) {
@@ -87,6 +91,13 @@ public:
                     i
                 ));
             }
+        } else if (threads_count_old > threads_count_new) {
+            const unsigned int plumber_tasks_per_thread = 10u;
+            for (unsigned int i = 0; i < plumber_tasks_per_thread; ++i) {
+                for (threads_count_t j = 0; j < threads_count_old; ++j) {
+                    io_service_.post([](){});
+                }
+            }
         }
     }
 
@@ -110,7 +121,9 @@ public:
         return io_service_;
     }
 
-    ~boost_io_service() override {}
+    ~boost_io_service() override {
+        stop();
+    }
 };
 
 } // namespace anonymous
