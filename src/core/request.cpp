@@ -10,7 +10,7 @@ namespace {
     }
 } // anonymous namespace
 
-namespace cppalls { 
+namespace cppalls {
 
 request& request::operator>> (bool& val) {
     unsigned char c;

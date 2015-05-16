@@ -10,7 +10,7 @@ namespace {
     }
 } // anonymous namespace
 
-namespace cppalls { 
+namespace cppalls {
 
 response& response::operator<< (bool val) {
     const unsigned char c = val;

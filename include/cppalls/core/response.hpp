@@ -5,7 +5,7 @@
 #include <string>
 #include <vector>
 
-namespace cppalls { 
+namespace cppalls {
 
 class CORE_EXPORT response {
 public:

@@ -13,7 +13,7 @@ using size_constant = std::integral_constant<std::size_t, Size>;
 template <class T>
 struct lazy_size {
     static_assert(
-        false && std::is_void<T>::value, 
+        false && std::is_void<T>::value,
         "\n\n"
         " Specialize lazy_size<T> near the forward declaration of type, deriving lazy_size<T> from size_constant<size of object>\n"
         " Example:\n"

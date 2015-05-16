@@ -1,8 +1,9 @@
 #include <cppalls/core/stack_request.hpp>
 #include <boost/container/small_vector.hpp>
 #include <boost/utility/addressof.hpp>
+#include <boost/throw_exception.hpp>
 
-namespace cppalls { 
+namespace cppalls {
 
 stack_request::stack_request() noexcept
     : pimpl_()
@@ -11,7 +12,7 @@ stack_request::stack_request() noexcept
 
 void stack_request::extract_data(unsigned char* data, std::size_t size) {
     if (pimpl_->size() < size + data_extracted_) {
-        //boost::throw_exception();
+        boost::throw_exception(std::range_error("request::extract_data: no data remain"));
     }
 
     std::memcpy(data, begin(), size);

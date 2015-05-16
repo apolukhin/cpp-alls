@@ -6,7 +6,7 @@
 #include "detail/stack_pimpl.hpp"
 #include <cppalls/core/export.hpp>
 
-namespace cppalls { 
+namespace cppalls {
 
 class CORE_EXPORT stack_request : public request {
     cppalls::detail::stack_pimpl<
