@@ -15,6 +15,7 @@ add_executable(all_tests
 
     server_core.cpp
     io_service.cpp
+    request_response.cpp
 )
 
 target_link_libraries(all_tests ${GTEST_LIBRARIES} cppalls_core boost_system pthread)
