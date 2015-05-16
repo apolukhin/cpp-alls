@@ -127,7 +127,7 @@ namespace {
             }
         }
 
-        static void start_instance(const YAML::Node& app_node, const app_to_path_t& app_to_path, instances_t& instances) {
+        static void start_instance(const YAML::Node& app_node, const app_to_path_t& app_to_path, std::ostringstream& oss, instances_t& instances) {
             const auto app_type = app_node["type"].as<std::string>();
             const auto it = app_to_path.find(app_type);
             if (it == app_to_path.cend()) {
@@ -142,6 +142,7 @@ namespace {
                 ptr_holding_application_deleter(std::move(lib))
             );
 
+            oss << "Starting '" << app_type << "' with name '" << app_node["instance-name"].as<std::string>(app_type) << "'\n";
             shared_app->start(app_node["params"]);
 
             instances.insert(std::make_pair(
@@ -162,7 +163,8 @@ namespace {
                 "params: {severity: error}\n"
             );
 
-            start_instance(node, app_to_path_, instances_);
+            std::ostringstream ignore;
+            start_instance(node, app_to_path_, ignore, instances_);
             log_ = server::get<api::logger>("__basic-logger");
         }
 
@@ -189,6 +191,7 @@ namespace {
             }
 
             std::sort(configs.begin(), configs.end());
+
             for (auto&& conf_path : configs) {
                 auto another_conf = YAML::LoadFile(conf_path);
                 for (auto&& app : another_conf["applications"]) {
@@ -236,7 +239,7 @@ namespace {
             fill_apps_to_path(config, oss, app_to_path_);
 
             for (auto&& app_node : config["applications"]) {
-                start_instance(app_node, app_to_path_, instances_);
+                start_instance(app_node, app_to_path_, oss, instances_);
             }
 
             init_logger(config);
@@ -305,11 +308,12 @@ namespace {
                 );
                 auto instance_it = instances_.find(instance);
                 if (instance_it == instances_.cend()) {
-                    start_instance(app_node, new_app_to_path, new_instances);
+                    start_instance(app_node, new_app_to_path, oss, new_instances);
+                    instances_.insert(*new_instances.find(instance));
                 } else {
+                    oss << "Reloading application instance '" << instance << "'\n";
                     instance_it->second->reload(app_node["params"]);
-                    new_instances.insert(std::move(*instance_it));
-                    instances_.erase(instance_it);
+                    new_instances.insert(*instance_it);
                 }
             }
 

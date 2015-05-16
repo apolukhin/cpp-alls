@@ -7,8 +7,13 @@ applications:
                 Main:
                     Destination: Console
                     Format: "%TimeStamp% %Severity% [%Channel% %tag%]: %Message%"
-                    Filter: "%tag% = qwe or %Severity% >= INFO"
+                    Filter: "%tag% = error-logger"
                     AutoFlush: true
+
+    - type: "boost_logger"
+      instance-name: "core_logger"
+      params:
+            tag: "core"
 
     - type: "boost_logger"
       instance-name: "warning_logger"
@@ -20,3 +25,7 @@ applications:
       params:
             tag: "debug-logger"
 
+    - type: "boost_logger"
+      instance-name: iologger
+      params:
+            tag: iologger

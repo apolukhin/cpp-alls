@@ -1,5 +1,5 @@
 core:
-    binaries: ../../build-cpp-alls-Desktop-Default/src/apps/logger/
-    logger: "warning_logger"
+    binaries: [../../build-cpp-alls-Desktop-Default/src/apps/logger/, ../../build-cpp-alls-Desktop-Default/src/apps/boost_io_service/]
+    logger: core_logger
     configs: server_core_confs
 

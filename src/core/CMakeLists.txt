@@ -8,6 +8,7 @@ add_library(cppalls_core SHARED
     ../../include/cppalls/core/exceptions.hpp
     ../../include/cppalls/api/application.hpp
     ../../include/cppalls/api/logger.hpp
+    ../../include/cppalls/api/io_service.hpp
 
     server.cpp
     cpp_logger.cpp

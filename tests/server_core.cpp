@@ -45,6 +45,13 @@ TEST(server, basic_start_stop_reload) {
     EXPECT_THROW(!!server::get<fake_api>("warning_logger"), error_runtime);
     EXPECT_THROW(!!server::get<api::logger>("app_that_does_not_exist"), error_runtime);
 
+    server::stop();
+    ASSERT_TRUE(server::available_apps().empty());
+
+    EXPECT_THROW(!!server::get<api::logger>("warning_logger"), error_runtime);
+    EXPECT_THROW(!!server::get<fake_api>("warning_logger"), error_runtime);
+    EXPECT_THROW(!!server::get<api::logger>("app_that_does_not_exist"), error_runtime);
+
 
     server::reload();
     // servr was stopped, so old app != new app
