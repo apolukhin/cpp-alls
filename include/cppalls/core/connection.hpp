@@ -21,19 +21,19 @@ public:
     virtual ~connection() {}
 
     virtual void async_read(callback_t&&, std::size_t size) = 0;
-    virtual void async_write(callback_t&&) = 0;
+    virtual void async_write(callback_t&& = callback_t()) = 0;
     virtual void close() = 0;
     virtual cppalls::request& request() noexcept = 0;
     virtual cppalls::response& response() noexcept = 0;
 
     template <class T>
-    cppalls::request& operator>>(const T& val) {
+    cppalls::request& operator>>(T& val) {
         return request() >> val;
     }
 
     template <class T>
     cppalls::response& operator<<(const T& val) {
-        return response() >> val;
+        return response() << val;
     }
 };
 

@@ -6,4 +6,4 @@ add_library(cppalls_tcp MODULE
 )
 
 
-target_link_libraries(cppalls_tcp)
+target_link_libraries(cppalls_tcp PRIVATE)

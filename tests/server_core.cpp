@@ -102,8 +102,3 @@ TEST(server, app_instance) {
     ASSERT_TRUE(l2 != l2_deb);
     LINFO(*l1_deb) << "Works!";
 }
-
-int main(int argc, char **argv) {
-    ::testing::InitGoogleTest(&argc, argv);
-    return RUN_ALL_TESTS();
-}

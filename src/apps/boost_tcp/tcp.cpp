@@ -12,10 +12,13 @@
 #include <boost/asio/placeholders.hpp>
 #include <memory>
 #include <functional>
+#include <yaml-cpp/yaml.h>
 
 // MinGW related workaround
 #define BOOST_DLL_FORCE_ALIAS_INSTANTIATION
 #include <boost/dll/alias.hpp> // for BOOST_DLL_ALIAS
+
+#include <iostream>
 
 namespace {
 
@@ -57,7 +60,9 @@ class tcp_connection : public cppalls::connection, public std::enable_shared_fro
         {}
 
         void operator()(const boost::system::error_code& error, std::size_t /*bytes_received*/) {
-            callback_(*connection_, to_std_error_code(error));
+            if (callback_) {
+                callback_(*connection_, to_std_error_code(error));
+            }
         }
     };
 
@@ -72,7 +77,9 @@ class tcp_connection : public cppalls::connection, public std::enable_shared_fro
 
         void operator()(const boost::system::error_code& error, std::size_t /*bytes_transferred*/) {
             connection_->response_.clear();
-            callback_(*connection_, to_std_error_code(error));
+            if (callback_) {
+                callback_(*connection_, to_std_error_code(error));
+            }
         }
     };
 
@@ -81,7 +88,7 @@ public:
         : log_(std::move(log))
         , processor_(std::move(processor))
         , io_service_(std::move(io_service))
-        , s_(io_service->io_service())
+        , s_(io_service_->io_service())
     {}
 
     void async_write(callback_t&& cb) override {
@@ -111,6 +118,7 @@ public:
     }
 
     void close() override {
+        s_.shutdown(boost::asio::ip::tcp::socket::shutdown_both);
         s_.close();
     }
 
@@ -125,6 +133,12 @@ public:
     void start() {
         auto& processor = *processor_;
         processor(*shared_from_this());
+    }
+
+    ~tcp_connection() override {
+        boost::system::error_code ignore;
+        s_.shutdown(boost::asio::ip::tcp::socket::shutdown_both, ignore);
+        s_.close(ignore);
     }
 };
 
@@ -172,21 +186,21 @@ public:
             conf["io_service"].as<std::string>()
         );
 
-        acceptor_ = std::make_shared<boost::asio::ip::tcp::acceptor>(
-            io_service_->io_service(),
-            boost::asio::ip::tcp::endpoint(boost::asio::ip::tcp::v4(), 13)
+
+        boost::asio::ip::tcp::endpoint ep(
+            boost::asio::ip::address::from_string(conf["listen-address"].as<std::string>("0.0.0.0")),
+            conf["listen-port"].as<unsigned short>()
         );
 
-        if (conf["reuse_address"].as<bool>(true)) {
+        acceptor_ = std::make_shared<boost::asio::ip::tcp::acceptor>(
+            io_service_->io_service(),
+            std::move(ep)
+        );
+
+        if (conf["reuse-address"].as<bool>(true)) {
             acceptor_->set_option(boost::asio::ip::tcp::socket::reuse_address(true));
         }
 
-        boost::asio::ip::tcp::endpoint ep(
-            boost::asio::ip::address::from_string(conf["listen_address"].as<std::string>("0.0.0.0")),
-            conf["listen_port"].as<unsigned short>()
-        );
-
-        acceptor_->bind(std::move(ep));
         accept();
     }
 
@@ -201,6 +215,10 @@ public:
 
     static std::unique_ptr<cppalls::api::application> create() {
         return std::unique_ptr<cppalls::api::application>(new tcp());
+    }
+
+    ~tcp() override {
+        stop();
     }
 };
 
