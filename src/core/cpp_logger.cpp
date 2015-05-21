@@ -71,8 +71,8 @@ public:
         }
     }
 
-    static std::unique_ptr<cpp_logger> create() {
-        return std::unique_ptr<cpp_logger>(new cpp_logger());
+    static std::unique_ptr<cppalls::api::application> create() {
+        return std::unique_ptr<cppalls::api::application>(new cpp_logger());
     }
 
     ~cpp_logger() override {}
