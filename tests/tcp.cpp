@@ -82,8 +82,7 @@ TEST(boost_tcp_acceptor, send_receive_closing) {
     test_send_receive_generic<int>(io_service, -80000, -79900, "18080");
     test_send_receive_generic<short>(io_service, 800, 900, "18081");
 
-    // TODO:
-    //test_send_receive_generic_noclose<int>(io_service, -80000, -79900, "19080");
-    //test_send_receive_generic_noclose<short>(io_service, 800, 900, "19081");
+    test_send_receive_generic_noclose<int>(io_service, -80000, -79900, "19080");
+    test_send_receive_generic_noclose<short>(io_service, 800, 900, "19081");
 }
 

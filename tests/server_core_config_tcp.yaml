@@ -71,7 +71,7 @@ applications:
           listen-address: 127.0.0.1
           io_service: io
           reuse-address: true
-          processor: echo_int_connection_noclose
+          processor: echo_short_connection_noclose
 
 core:
     binaries:

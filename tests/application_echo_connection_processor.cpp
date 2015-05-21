@@ -22,8 +22,10 @@ public:
         return std::static_pointer_cast<this_t>(cppalls::api::application::shared_from_this());
     }
 
-    void on_write(connection& c) {
-        if (Close) {
+    void on_write(connection& c, const std::error_code& ec) {
+        if (ec) {
+            c.close();
+        } else if (Close) {
             c.close();
         } else {
             (*this)(c);
@@ -33,13 +35,14 @@ public:
     void on_read(connection& c, const std::error_code& ec) {
         if (ec) {
             // TODO:
+            return;
         }
 
         T val;
         c >> val;
         c << val;
         c.async_write(
-            std::bind(&this_t::on_write, shared_from_this(), std::placeholders::_1)
+            std::bind(&this_t::on_write, shared_from_this(), std::placeholders::_1, std::placeholders::_2)
         );
     }
 
