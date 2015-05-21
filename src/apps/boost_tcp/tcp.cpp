@@ -3,6 +3,7 @@
 #include <cppalls/core/connection.hpp>
 #include <cppalls/core/stack_request.hpp>
 #include <cppalls/core/stack_response.hpp>
+#include <cppalls/core/export.hpp>
 #include <cppalls/api/io_service.hpp>
 #include <cppalls/api/logger.hpp>
 #include <cppalls/api/connection_processor.hpp>
@@ -13,10 +14,6 @@
 #include <memory>
 #include <functional>
 #include <yaml-cpp/yaml.h>
-
-// MinGW related workaround
-#define BOOST_DLL_FORCE_ALIAS_INSTANTIATION
-#include <boost/dll/alias.hpp> // for BOOST_DLL_ALIAS
 
 #include <iostream>
 
@@ -224,4 +221,4 @@ public:
 
 } // anonymous namespace
 
-BOOST_DLL_ALIAS_SECTIONED(tcp::create, tcp_acceptor, cppalls)
+CPPALLS_APPLICATION(tcp::create, tcp_acceptor)

@@ -1,4 +1,5 @@
 #include <cppalls/api/logger.hpp>
+#include <cppalls/core/export.hpp>
 #include <yaml-cpp/yaml.h>
 #include <memory>
 #include <boost/log/trivial.hpp>
@@ -7,10 +8,6 @@
 #include <boost/log/utility/setup/common_attributes.hpp>
 #include <boost/log/utility/setup/formatter_parser.hpp>
 #include <boost/algorithm/string.hpp>
-
-// MinGW related workaround
-#define BOOST_DLL_FORCE_ALIAS_INSTANTIATION
-#include <boost/dll/alias.hpp> // for BOOST_DLL_ALIAS
 
 #include <boost/log/sources/record_ostream.hpp>
 
@@ -123,5 +120,5 @@ public:
 
 } // namespace anonymous
 
-BOOST_DLL_ALIAS_SECTIONED(boost_logger_core::create, boost_logger_core, cppalls)
-BOOST_DLL_ALIAS_SECTIONED(boost_logger::create, boost_logger, cppalls)
+CPPALLS_APPLICATION(boost_logger_core::create, boost_logger_core)
+CPPALLS_APPLICATION(boost_logger::create, boost_logger)

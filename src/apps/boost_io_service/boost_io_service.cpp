@@ -1,16 +1,13 @@
 #include <cppalls/api/io_service.hpp>
 #include <cppalls/core/logging.hpp>
 #include <cppalls/core/server.hpp>
+#include <cppalls/core/export.hpp>
 #include <yaml-cpp/yaml.h>
 #include <boost/asio/io_service.hpp>
 #include <boost/thread/thread.hpp>
 #include <atomic>
 #include <limits>
 #include <boost/exception/all.hpp>
-
-// MinGW related workaround
-#define BOOST_DLL_FORCE_ALIAS_INSTANTIATION
-#include <boost/dll/alias.hpp> // for BOOST_DLL_ALIAS
 
 namespace {
 
@@ -128,4 +125,4 @@ public:
 
 } // namespace anonymous
 
-BOOST_DLL_ALIAS_SECTIONED(boost_io_service::create, boost_io_service, cppalls)
+CPPALLS_APPLICATION(boost_io_service::create, boost_io_service)

@@ -1,10 +1,7 @@
 #include <cppalls/api/logger.hpp>
+#include <cppalls/core/export.hpp>
 #include <yaml-cpp/yaml.h>
 #include <iostream>
-
-// MinGW related workaround
-#define BOOST_DLL_FORCE_ALIAS_INSTANTIATION
-#include <boost/dll/alias.hpp> // for BOOST_DLL_ALIAS
 
 namespace {
 
@@ -83,5 +80,5 @@ public:
 
 } // namespace anonymous
 
-BOOST_DLL_ALIAS_SECTIONED(cpp_logger::create, cpp_logger, cppalls)
+CPPALLS_APPLICATION(cpp_logger::create, cpp_logger)
 
