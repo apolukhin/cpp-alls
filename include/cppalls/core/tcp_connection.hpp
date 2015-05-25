@@ -21,7 +21,6 @@
 namespace cppalls {
 
 class CORE_EXPORT tcp_connection final: public cppalls::connection, public std::enable_shared_from_this<tcp_connection> {
-    std::shared_ptr<api::logger>                log_;
     std::shared_ptr<api::connection_processor>  processor_;
     std::shared_ptr<api::io_service_provider>   io_service_;
     cppalls::detail::stack_pimpl<
@@ -34,7 +33,7 @@ class CORE_EXPORT tcp_connection final: public cppalls::connection, public std::
 
     static inline std::error_code to_std_error_code(const boost::system::error_code& error) noexcept;
 
-    explicit tcp_connection(std::shared_ptr<api::logger>&& log, std::shared_ptr<api::connection_processor>&& processor, std::shared_ptr<api::io_service_provider>&& io_service);
+    explicit tcp_connection(std::shared_ptr<api::connection_processor>&& processor, std::shared_ptr<api::io_service_provider>&& io_service);
 
     template <class> friend class cppalls::detail::shared_allocator_friend;
 
@@ -55,7 +54,8 @@ public:
         return response_;
     }
 
-    static std::shared_ptr<tcp_connection> create(std::shared_ptr<api::logger> log, std::shared_ptr<api::connection_processor> processor, std::shared_ptr<api::io_service_provider> io_serv);
+    static std::shared_ptr<tcp_connection> create(std::shared_ptr<api::connection_processor> processor, std::shared_ptr<api::io_service_provider> io_serv);
+    static std::shared_ptr<tcp_connection> create(const char* address, const char* port);
 };
 
 } // namespace cppalls

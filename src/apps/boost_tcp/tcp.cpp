@@ -68,9 +68,8 @@ class tcp_connection : public cppalls::connection, public std::enable_shared_fro
         }
     };
 
-    explicit tcp_connection(std::shared_ptr<logger_t>&& log, std::shared_ptr<connection_processor_t>&& processor, std::shared_ptr<io_service_t>&& io_service)
-        : log_(std::move(log))
-        , processor_(std::move(processor))
+    explicit tcp_connection(std::shared_ptr<connection_processor_t>&& processor, std::shared_ptr<io_service_t>&& io_service)
+        : processor_(std::move(processor))
         , io_service_(std::move(io_service))
         , s_(io_service_->io_service())
     {}
@@ -113,10 +112,9 @@ public:
         return *s_;
     }
 
-    static std::shared_ptr<tcp_connection> create(std::shared_ptr<logger_t> log, std::shared_ptr<connection_processor_t> processor, std::shared_ptr<io_service_t> io_serv) {
+    static std::shared_ptr<tcp_connection> create(std::shared_ptr<connection_processor_t> processor, std::shared_ptr<io_service_t> io_serv) {
         return std::allocate_shared<tcp_connection>(
             cppalls::detail::shared_allocator_friend<tcp_connection>(),
-            std::move(log),
             std::move(processor),
             std::move(io_serv)
         );
@@ -146,7 +144,7 @@ class tcp : public cppalls::api::application {
     }
 
     void accept() {
-        auto c = tcp_connection::create(log_, processor_, io_service_);
+        auto c = tcp_connection::create(processor_, io_service_);
         auto& socket = c->socket();
         acceptor_->async_accept(
             socket,

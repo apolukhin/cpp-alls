@@ -1,8 +1,7 @@
 #include "gtest/gtest.h"
 
 #include "cppalls/core/server.hpp"
-#include "cppalls/core/logging.hpp"
-#include <boost/asio.hpp>
+#include "cppalls/core/tcp_connection.hpp"
 #include <boost/array.hpp>
 #include <boost/endian/arithmetic.hpp>
 #include <memory>
@@ -20,57 +19,30 @@ struct server_guard {
 };
 
 template <class T>
-void test_send_receive_generic(boost::asio::io_service& io_service, T from, T to, const char* port) {
-    using boost::asio::ip::tcp;
+void test_send_receive_generic(T from, T to, const char* port) {
     for (T i = from; i < to; ++i) {
-        tcp::resolver resolver(io_service);
-        tcp::resolver::query query("127.0.0.1", port);
-        tcp::resolver::iterator endpoint_iterator = resolver.resolve(query);
+        auto socket = tcp_connection::create("127.0.0.1", port);
+        *socket << i;
+        socket->write();
 
-        boost::asio::ip::tcp::tcp::socket socket(io_service);
-        boost::asio::connect(socket, endpoint_iterator);
-
-        auto val = boost::endian::native_to_little(i);
-        boost::array<unsigned char, sizeof(val)> buf;
-        std::memcpy(&buf[0], &val, sizeof(val));
-        val = 0;
-
-        size_t len = socket.send(boost::asio::buffer(buf, sizeof(val)));
-        ASSERT_TRUE(len == sizeof(val));
-        std::memset(&buf[0], 0, sizeof(val));
-
-        boost::asio::read(socket, boost::asio::buffer(buf));
-        std::memcpy(&val, &buf[0], sizeof(val));
-
-        const auto res = boost::endian::little_to_native(val);
+        socket->read(sizeof(T));
+        T res;
+        *socket >> res;
         ASSERT_EQ(res, i);
     }
 }
 
 template <class T>
-void test_send_receive_generic_noclose(boost::asio::io_service& io_service, T from, T to, const char* port) {
-    using boost::asio::ip::tcp;
-    tcp::resolver resolver(io_service);
-    tcp::resolver::query query("127.0.0.1", port);
-    tcp::resolver::iterator endpoint_iterator = resolver.resolve(query);
-
-    boost::asio::ip::tcp::tcp::socket socket(io_service);
-    boost::asio::connect(socket, endpoint_iterator);
+void test_send_receive_generic_noclose(T from, T to, const char* port) {
+    auto socket = tcp_connection::create("127.0.0.1", port);
 
     for (T i = from; i < to; ++i) {
-        auto val = boost::endian::native_to_little(i);
-        boost::array<unsigned char, sizeof(val)> buf;
-        std::memcpy(&buf[0], &val, sizeof(val));
-        val = 0;
+        *socket << i;
+        socket->write();
 
-        size_t len = socket.send(boost::asio::buffer(buf, sizeof(val)));
-        ASSERT_TRUE(len == sizeof(val));
-        std::memset(&buf[0], 0, sizeof(val));
-
-        boost::asio::read(socket, boost::asio::buffer(buf));
-        std::memcpy(&val, &buf[0], sizeof(val));
-
-        const auto res = boost::endian::little_to_native(val);
+        socket->read(sizeof(T));
+        T res;
+        *socket >> res;
         ASSERT_EQ(res, i);
     }
 }
@@ -78,11 +50,10 @@ void test_send_receive_generic_noclose(boost::asio::io_service& io_service, T fr
 TEST(boost_tcp_acceptor, send_receive_closing) {
     server_guard guard("../../cpp-alls/tests/server_core_config_tcp.yaml");
 
-    boost::asio::io_service io_service;
-    test_send_receive_generic<int>(io_service, -80000, -79900, "18080");
-    test_send_receive_generic<short>(io_service, 800, 900, "18081");
+    test_send_receive_generic<int>(-80000, -79900, "18080");
+    test_send_receive_generic<short>(800, 900, "18081");
 
-    test_send_receive_generic_noclose<int>(io_service, -80000, -79900, "19080");
-    test_send_receive_generic_noclose<short>(io_service, 800, 900, "19081");
+    test_send_receive_generic_noclose<int>(-80000, -79900, "19080");
+    test_send_receive_generic_noclose<short>(800, 900, "19081");
 }
 
