@@ -1,21 +1,8 @@
-#include <cppalls/core/server.hpp>
-#include <cppalls/core/logging.hpp>
-#include <cppalls/core/connection.hpp>
-#include <cppalls/core/stack_request.hpp>
-#include <cppalls/core/stack_response.hpp>
-#include <cppalls/core/export.hpp>
-#include <cppalls/api/io_service.hpp>
-#include <cppalls/api/logger.hpp>
-#include <cppalls/api/connection_processor.hpp>
+#include <cppalls/core/tcp_connection.hpp>
 #include <boost/asio/ip/tcp.hpp>
 #include <boost/asio/write.hpp>
 #include <boost/asio/read.hpp>
 #include <boost/asio/placeholders.hpp>
-#include <memory>
-#include <functional>
-#include <yaml-cpp/yaml.h>
-
-#include <iostream>
 
 namespace {
 
@@ -36,11 +23,12 @@ class tcp_connection : public cppalls::connection, public std::enable_shared_fro
     std::shared_ptr<logger_t>               log_;
     std::shared_ptr<connection_processor_t> processor_;
     std::shared_ptr<io_service_t>           io_service_;
-    boost::asio::ip::tcp::socket            s_;
+    cppalls::detail::stack_pimpl<
+        cppalls::detail::tcp_socket
+    > s_;
 
     cppalls::stack_request                  request_;
     cppalls::stack_response                 response_;
-
 
 
     static inline std::error_code to_std_error_code(const boost::system::error_code& error) noexcept {
@@ -80,7 +68,6 @@ class tcp_connection : public cppalls::connection, public std::enable_shared_fro
         }
     };
 
-public:
     explicit tcp_connection(std::shared_ptr<logger_t>&& log, std::shared_ptr<connection_processor_t>&& processor, std::shared_ptr<io_service_t>&& io_service)
         : log_(std::move(log))
         , processor_(std::move(processor))
@@ -88,6 +75,9 @@ public:
         , s_(io_service_->io_service())
     {}
 
+    template <class> friend class cppalls::detail::shared_allocator_friend;
+
+public:
     void async_write(callback_t&& cb) override {
         boost::asio::async_write(
             socket(),
@@ -115,27 +105,32 @@ public:
     }
 
     void close() override {
-        s_.shutdown(boost::asio::ip::tcp::socket::shutdown_both);
-        s_.close();
+        s_->shutdown(boost::asio::ip::tcp::socket::shutdown_both);
+        s_->close();
     }
 
     boost::asio::ip::tcp::socket& socket() noexcept {
-        return s_;
+        return *s_;
     }
 
     static std::shared_ptr<tcp_connection> create(std::shared_ptr<logger_t> log, std::shared_ptr<connection_processor_t> processor, std::shared_ptr<io_service_t> io_serv) {
-        return std::make_shared<tcp_connection>(std::move(log), std::move(processor), std::move(io_serv));
+        return std::allocate_shared<tcp_connection>(
+            cppalls::detail::shared_allocator_friend<tcp_connection>(),
+            std::move(log),
+            std::move(processor),
+            std::move(io_serv)
+        );
     }
 
     void start() {
         auto& processor = *processor_;
-        processor(*shared_from_this());
+        processor(*this);
     }
 
     ~tcp_connection() override {
         boost::system::error_code ignore;
-        s_.shutdown(boost::asio::ip::tcp::socket::shutdown_both, ignore);
-        s_.close(ignore);
+        s_->shutdown(boost::asio::ip::tcp::socket::shutdown_both, ignore);
+        s_->close(ignore);
     }
 };
 
@@ -163,7 +158,7 @@ class tcp : public cppalls::api::application {
         accept();
 
         if (!error) {
-            c->start();
+            processor_->operator ()(*c);
         } else {
             LWARN(log_) << "Error during accept: " << error;
         }
