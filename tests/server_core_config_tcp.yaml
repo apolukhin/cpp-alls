@@ -75,7 +75,7 @@ applications:
 
 core:
     binaries:
-        - ../../build-cpp-alls-Desktop-Default/src/apps/logger/
+        - ../../build-cpp-alls-Desktop-Default/src/apps/boost_logger/
         - ../../build-cpp-alls-Desktop-Default/src/apps/boost_tcp/
         - ../../build-cpp-alls-Desktop-Default/src/apps/boost_io_service/
         - ../../build-cpp-alls-Desktop-Default/tests/

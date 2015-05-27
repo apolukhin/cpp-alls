@@ -8,6 +8,7 @@
 #include <atomic>
 #include <limits>
 #include <boost/exception/all.hpp>
+#include <boost/atomic.hpp>
 
 namespace {
 
@@ -17,8 +18,8 @@ class boost_io_service final: public cppalls::api::io_service_provider {
     boost::thread_group                             threads_;
     std::shared_ptr<cppalls::api::logger>           log_;
 
-    typedef unsigned short          threads_count_t;
-    std::atomic<threads_count_t>    required_threads_count_;
+    typedef unsigned short              threads_count_t;
+    boost::atomic<threads_count_t>      required_threads_count_;
 
     boost_io_service() noexcept
         : required_threads_count_(0)
@@ -27,7 +28,7 @@ class boost_io_service final: public cppalls::api::io_service_provider {
     void run(const threads_count_t thread_index) noexcept {
         LINFO(log_) << "Started thread with index = " << thread_index;
 
-        while (required_threads_count_.load(/*std::memory_order_relaxed*/) > thread_index) {
+        while (required_threads_count_.load(boost::memory_order_relaxed) > thread_index) {
             try {
                 const bool is_stopped = !io_service_.run_one();
                 if (is_stopped) {
@@ -78,7 +79,7 @@ public:
         }
 
         log_ = cppalls::server::get<cppalls::api::logger>(config["logger"].as<std::string>());
-        required_threads_count_.store(threads_count_new, std::memory_order_acq_rel);
+        required_threads_count_ = threads_count_new;
 
         if (threads_count_old < threads_count_new) {
             for (threads_count_t i = threads_count_old; i < threads_count_new; ++i) {
@@ -103,7 +104,7 @@ public:
             LINFO(log_) << "boost_io_service stopping";
         }
         work_.reset();
-        required_threads_count_.store(0, std::memory_order_acq_rel);
+        required_threads_count_ = 0;
         io_service_.stop();
         threads_.join_all();
         io_service_.reset();

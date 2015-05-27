@@ -1,5 +1,5 @@
 core:
-    binaries: [../../build-cpp-alls-Desktop-Default/src/apps/logger/, ../../build-cpp-alls-Desktop-Default/src/apps/boost_io_service/]
+    binaries: [../../build-cpp-alls-Desktop-Default/src/apps/boost_logger/, ../../build-cpp-alls-Desktop-Default/src/apps/boost_io_service/]
     #logger: trace_logger
     configs: [ server_core_confs/010_boost_loggers.yaml, server_core_confs ]
 

@@ -50,6 +50,7 @@ void test_send_receive_generic_noclose(T from, T to, const char* port) {
 TEST(boost_tcp_acceptor, send_receive_closing) {
     server_guard guard("../../cpp-alls/tests/server_core_config_tcp.yaml");
 
+
     test_send_receive_generic<int>(-80000, -79900, "18080");
     test_send_receive_generic<short>(800, 900, "18081");
 
