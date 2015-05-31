@@ -11,10 +11,18 @@ class stream_socket_service;
 template <typename Protocol, typename StreamSocketService>
 class basic_stream_socket;
 
+
+template <typename Protocol>
+class datagram_socket_service;
+
+template <typename Protocol, typename DatagramSocketService>
+class basic_datagram_socket;
+
 }} // namespace boost::asio
 
 namespace boost { namespace asio { namespace ip {
     class tcp;
+    class udp;
 }}} // namespace boost::asio::ip
 
 
@@ -31,6 +39,17 @@ namespace cppalls { namespace detail {
 
     template <>
     struct lazy_size<tcp_socket> : size_constant<
+        32
+    > {};
+
+
+    typedef boost::asio::basic_datagram_socket<
+        boost::asio::ip::udp,
+        boost::asio::datagram_socket_service<boost::asio::ip::udp>
+    > udp_socket;
+
+    template <>
+    struct lazy_size<udp_socket> : size_constant<
         32
     > {};
 

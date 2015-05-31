@@ -14,6 +14,7 @@
 #include <functional>
 
 #include <boost/asio/ip/tcp.hpp>
+#include <boost/asio/ip/udp.hpp>
 #include <boost/asio/write.hpp>
 #include <boost/asio/read.hpp>
 #include <boost/asio/placeholders.hpp>
@@ -121,49 +122,47 @@ inline custom_alloc_handler<typename std::remove_reference<Handler>::type>
     return custom_alloc_handler<typename std::remove_reference<Handler>::type>(a, std::forward<Handler>(h));
 }
 
+inline std::error_code to_std_error_code(const boost::system::error_code& error) noexcept {
+    return std::make_error_code( static_cast<std::errc>(error.value()) );
+}
 
-class tcp_connection_fast : public cppalls::connection, public std::enable_shared_from_this<tcp_connection_fast> {
-    // We do not keep parent_ alive to make sure, that DLL won't be unloaded while tcp_connection_fasts are running.
-    // This application server must take care of it!
-    // std::shared_ptr<tcp>                    parent_;
+struct callback_read_wrapped {
+    callback_t                              callback_;
+    std::shared_ptr<cppalls::connection>    connection_;
+
+    callback_read_wrapped(callback_t&& callback, std::shared_ptr<cppalls::connection>&& connection) noexcept
+        : callback_(std::move(callback))
+        , connection_(std::move(connection))
+    {}
+
+    void operator()(const boost::system::error_code& error, std::size_t /*bytes_received*/) {
+        if (callback_) {
+            callback_(*connection_, to_std_error_code(error));
+        }
+    }
+};
+
+template <class Protocol>
+class async_connection_fast final: public cppalls::connection, public std::enable_shared_from_this<async_connection_fast<Protocol> > {
+    // We do keep parent_ alive to make sure, that DLL won't be unloaded while tcp_connection_fasts are running.
+    std::shared_ptr<cppalls::api::application> parent_;
 
     std::shared_ptr<logger_t>               log_;
     std::shared_ptr<connection_processor_t> processor_;
     std::shared_ptr<io_service_t>           io_service_;
-    cppalls::detail::stack_pimpl<
-        cppalls::detail::tcp_socket
-    > s_;
+    cppalls::detail::stack_pimpl<Protocol > s_;
 
     cppalls::stack_request                  request_;
     cppalls::stack_response                 response_;
     handler_allocator                       allocator_;
 
-
-    static inline std::error_code to_std_error_code(const boost::system::error_code& error) noexcept {
-        return std::make_error_code( static_cast<std::errc>(error.value()) );
-    }
-
-    struct callback_read_wrapped {
-        callback_t                              callback_;
-        std::shared_ptr<tcp_connection_fast>    connection_;
-
-        callback_read_wrapped(callback_t&& callback, std::shared_ptr<tcp_connection_fast>&& connection) noexcept
-            : callback_(std::move(callback))
-            , connection_(std::move(connection))
-        {}
-
-        void operator()(const boost::system::error_code& error, std::size_t /*bytes_received*/) {
-            if (callback_) {
-                callback_(*connection_, to_std_error_code(error));
-            }
-        }
-    };
+    typedef async_connection_fast<Protocol> this_t;
 
     struct callback_write_wrapped {
         callback_t                              callback_;
-        std::shared_ptr<tcp_connection_fast>    connection_;
+        std::shared_ptr<this_t>    connection_;
 
-        callback_write_wrapped(callback_t&& callback, std::shared_ptr<tcp_connection_fast>&& connection) noexcept
+        callback_write_wrapped(callback_t&& callback, std::shared_ptr<this_t>&& connection) noexcept
             : callback_(std::move(callback))
             , connection_(std::move(connection))
         {}
@@ -176,8 +175,9 @@ class tcp_connection_fast : public cppalls::connection, public std::enable_share
         }
     };
 
-    explicit tcp_connection_fast(std::shared_ptr<connection_processor_t>&& processor, std::shared_ptr<io_service_t>&& io_service)
-        : processor_(std::move(processor))
+    explicit async_connection_fast(std::shared_ptr<cppalls::api::application>&& parent,std::shared_ptr<connection_processor_t>&& processor, std::shared_ptr<io_service_t>&& io_service)
+        : parent_(std::move(parent))
+        , processor_(std::move(processor))
         , io_service_(std::move(io_service))
         , s_(io_service_->io_service())
     {}
@@ -186,20 +186,18 @@ class tcp_connection_fast : public cppalls::connection, public std::enable_share
 
 public:
     void async_write(callback_t&& cb) override {
-        boost::asio::async_write(
-            socket(),
+        socket().async_send(
             boost::asio::buffer(response_.begin(), response_.end() - response_.begin()),
-            make_custom_alloc_handler(allocator_, callback_write_wrapped(std::move(cb), shared_from_this()))
+            make_custom_alloc_handler(allocator_, callback_write_wrapped(std::move(cb), this_t::shared_from_this()))
         );
     }
 
     void async_read(callback_t&& cb, std::size_t size) override {
         request_.clear();
         request_.resize(size);
-        boost::asio::async_read(
-            socket(),
+        socket().async_receive(
             boost::asio::buffer(request_.begin(), size),
-            make_custom_alloc_handler(allocator_, callback_read_wrapped(std::move(cb), shared_from_this()))
+            make_custom_alloc_handler(allocator_, callback_read_wrapped(std::move(cb), this_t::shared_from_this()))
         );
     }
 
@@ -216,13 +214,14 @@ public:
         s_->close();
     }
 
-    boost::asio::ip::tcp::socket& socket() noexcept {
+    Protocol& socket() noexcept {
         return *s_;
     }
 
-    static std::shared_ptr<tcp_connection_fast> create(std::shared_ptr<connection_processor_t> processor, std::shared_ptr<io_service_t> io_serv) {
-        return std::allocate_shared<tcp_connection_fast>(
-            cppalls::detail::shared_allocator_friend<tcp_connection_fast>(),
+    static std::shared_ptr<async_connection_fast<Protocol> > create(std::shared_ptr<cppalls::api::application> parent, std::shared_ptr<connection_processor_t> processor, std::shared_ptr<io_service_t> io_serv) {
+        return std::allocate_shared<this_t>(
+            cppalls::detail::shared_allocator_friend<this_t>(),
+            std::move(parent),
             std::move(processor),
             std::move(io_serv)
         );
@@ -233,7 +232,7 @@ public:
         processor(*this);
     }
 
-    ~tcp_connection_fast() override {
+    ~async_connection_fast() override {
         boost::system::error_code ignore;
         s_->shutdown(boost::asio::ip::tcp::socket::shutdown_both, ignore);
         s_->close(ignore);
@@ -253,7 +252,7 @@ class tcp : public cppalls::api::application {
     }
 
     void accept() {
-        auto c = tcp_connection_fast::create(processor_, io_service_);
+        auto c = async_connection_fast<cppalls::detail::tcp_socket>::create(cppalls::api::application::shared_from_this(), processor_, io_service_);
         auto& socket = c->socket();
         acceptor_->async_accept(
             socket,
@@ -261,7 +260,7 @@ class tcp : public cppalls::api::application {
         );
     }
 
-    void on_accpet(std::shared_ptr<tcp_connection_fast> c, const boost::system::error_code& error) {
+    void on_accpet(std::shared_ptr<async_connection_fast<cppalls::detail::tcp_socket> > c, const boost::system::error_code& error) {
         accept();
 
         if (!error) {
@@ -309,6 +308,7 @@ public:
     void stop() {
         if (acceptor_) {
             acceptor_->close();
+            acceptor_.reset();
         }
 
         log_.reset();
@@ -324,6 +324,96 @@ public:
     }
 };
 
+
+
+class udp : public cppalls::api::application {
+    std::shared_ptr<logger_t>                       log_;
+    std::shared_ptr<connection_processor_t>         processor_;
+    std::shared_ptr<io_service_t>                   io_service_;
+
+    boost::asio::ip::udp::endpoint                  listen_endpoint_;
+    boost::asio::ip::udp::endpoint                  endpoint_;
+    bool                                            nodelay_;
+    char                                            tmp_buf_[1];
+
+    std::shared_ptr<udp> shared_from_this() {
+        return std::static_pointer_cast<udp>(cppalls::api::application::shared_from_this());
+    }
+
+    void accept() {
+        auto c = async_connection_fast<cppalls::detail::udp_socket>::create(cppalls::api::application::shared_from_this(), processor_, io_service_);
+        cppalls::detail::udp_socket& socket = c->socket();
+        socket.bind(listen_endpoint_);
+        socket.async_receive_from(
+            boost::asio::buffer(tmp_buf_),
+            endpoint_,
+            cppalls::detail::udp_socket::message_peek,
+            std::bind(&udp::on_accpet, shared_from_this(), std::move(c), std::placeholders::_1, std::placeholders::_2)
+        );
+    }
+
+    void on_accpet(std::shared_ptr<async_connection_fast<cppalls::detail::udp_socket> > c, const boost::system::error_code& error, std::size_t /*bytes_received*/) {
+        boost::system::error_code error2;
+        if (!error) {
+            c->socket().connect(endpoint_, error2);
+        }
+
+        accept();
+
+        if (!error2 && !error) {
+            processor_->operator ()(*c);
+        } else if (error) {
+            LWARN(log_) << "Error during UDP accept: " << error;
+        } else if (error2) {
+            LWARN(log_) << "Error during UDP connect: " << error2;
+        }
+    }
+
+public:
+    void start(const YAML::Node& conf) override {
+        log_ = cppalls::server::get<logger_t>(
+            conf["logger"].as<std::string>()
+        );
+
+        processor_ = cppalls::server::get<connection_processor_t>(
+            conf["processor"].as<std::string>()
+        );
+
+        io_service_ = cppalls::server::get<io_service_t>(
+            conf["io_service"].as<std::string>()
+        );
+
+
+        listen_endpoint_ = boost::asio::ip::udp::endpoint(
+            boost::asio::ip::address::from_string(conf["listen-address"].as<std::string>("0.0.0.0")),
+            conf["listen-port"].as<unsigned short>()
+        );
+
+        //if (conf["reuse-address"].as<bool>(true)) {
+        //    acceptor_->set_option(boost::asio::ip::tcp::socket::reuse_address(true));
+        //}
+
+        nodelay_ = conf["nodelay"].as<bool>(true);
+
+        accept();
+    }
+
+    void stop() {
+        listen_endpoint_ = boost::asio::ip::udp::endpoint();
+        log_.reset();
+        processor_.reset();
+    }
+
+    static std::unique_ptr<cppalls::api::application> create() {
+        return std::unique_ptr<cppalls::api::application>(new tcp());
+    }
+
+    ~udp() override {
+        stop();
+    }
+};
+
 } // anonymous namespace
 
 CPPALLS_APPLICATION(tcp::create, tcp_acceptor)
+CPPALLS_APPLICATION(udp::create, udp_acceptor)

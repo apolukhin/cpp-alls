@@ -1,21 +1,16 @@
-#include <cppalls/core/tcp_connection.hpp>
-#include <boost/asio/ip/tcp.hpp>
-#include <boost/asio/ip/udp.hpp>
+#ifndef CPPALS_SRC_CORE_SYNC_CONNECTION_IPP
+#define CPPALS_SRC_CORE_SYNC_CONNECTION_IPP
+
+#include <cppalls/core/detail/sync_connection.hpp>
 #include <boost/asio/write.hpp>
 #include <boost/asio/read.hpp>
 #include <boost/asio/connect.hpp>
-
-namespace cppalls {
 
 namespace {
     boost::asio::io_service io_service;
 } // anonymous namespace
 
-
-
-
-namespace detail {
-
+namespace cppalls { namespace detail {
 
 template <class Socket>
 sync_connection<Socket>::sync_connection(const char* address, const char* port)
@@ -64,25 +59,6 @@ sync_connection<Socket>::~sync_connection() {
 }
 
 
-} // namespace detail
+}} // namespace cppalls::detail
 
-
-tcp_connection::tcp_connection(const char *address, const char *port)
-    : base_t(address, port)
-{}
-
-void tcp_connection::close() {
-    base_t::close();
-}
-
-void tcp_connection::read(std::size_t size) {
-    base_t::read(size);
-}
-
-void tcp_connection::write() {
-    base_t::write();
-}
-
-tcp_connection::~tcp_connection(){}
-
-} // namespace cppalls
+#endif // CPPALS_SRC_CORE_SYNC_CONNECTION_IPP

@@ -23,8 +23,8 @@ add_executable(all_tests
     server_core.cpp
     io_service.cpp
     request_response.cpp
-    tcp.cpp
+    networking.cpp
 )
 
-target_link_libraries(all_tests ${GTEST_LIBRARIES} cppalls_core boost_system pthread)
+target_link_libraries(all_tests ${GTEST_LIBRARIES} cppalls_core boost_system boost_thread pthread)
 add_test(NAME all_tests COMMAND all_tests WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")

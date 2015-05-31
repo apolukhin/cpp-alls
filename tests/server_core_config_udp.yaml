@@ -1,0 +1,83 @@
+applications:
+    - type: boost_logger_core
+      params:
+            Core:
+                DisableLogging: false
+            Sinks:
+                Main:
+                    Destination: Console
+                    Format: "%TimeStamp% %Severity% [%Channel% %tag%]: %Message%"
+                    Filter: "%tag% = ignoreiologger"
+                    AutoFlush: true
+                    Async: false
+
+    - type: boost_logger
+      instance-name: udp_logger
+      params:
+            tag: udp
+
+    - type: boost_logger
+      instance-name: io_logger
+      params:
+            tag: iologger
+
+    - type: boost_io_service
+      instance-name: io
+      params:
+            logger: io_logger
+            threads: 2
+
+    - type: echo_int_connection
+    - type: echo_short_connection
+    - type: echo_string_connection
+
+    - type: echo_int_connection_noclose
+    - type: echo_short_connection_noclose
+    - type: echo_string_connection_noclose
+
+    - type: udp_acceptor
+      params:
+          logger: udp_logger
+          listen-port: 18080
+          listen-address: 127.0.0.1
+          io_service: io
+          reuse-address: true
+          processor: echo_int_connection
+
+    - type: udp_acceptor
+      params:
+          logger: udp_logger
+          listen-port: 18081
+          listen-address: 127.0.0.1
+          io_service: io
+          reuse-address: true
+          processor: echo_short_connection
+
+
+
+    - type: udp_acceptor
+      params:
+          logger: udp_logger
+          listen-port: 19080
+          listen-address: 127.0.0.1
+          io_service: io
+          reuse-address: true
+          processor: echo_int_connection_noclose
+
+    - type: udp_acceptor
+      params:
+          logger: udp_logger
+          listen-port: 19081
+          listen-address: 127.0.0.1
+          io_service: io
+          reuse-address: true
+          processor: echo_short_connection_noclose
+
+core:
+    binaries:
+        - ../../build-cpp-alls-Desktop-Default/src/apps/boost_logger/
+        - ../../build-cpp-alls-Desktop-Default/src/apps/boost_tcp/
+        - ../../build-cpp-alls-Desktop-Default/src/apps/boost_io_service/
+        - ../../build-cpp-alls-Desktop-Default/tests/
+
+    logger: udp_logger
