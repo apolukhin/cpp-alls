@@ -44,6 +44,11 @@ void stack_request::resize(std::size_t size) {
     pimpl_->resize(size);
 }
 
+void stack_request::shrink() {
+    pimpl_->erase(pimpl_->begin(), pimpl_->begin() + data_extracted_);
+    data_extracted_ = 0;
+}
+
 stack_request::~stack_request() noexcept {}
 
 } // namespace cppalls

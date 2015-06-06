@@ -9,6 +9,7 @@
 namespace cppalls {
 
 class CORE_EXPORT stack_response : public response {
+protected:
     cppalls::detail::stack_pimpl<
         boost::container::small_vector<unsigned char, 128, boost::container::new_allocator<unsigned char> >
     > pimpl_;

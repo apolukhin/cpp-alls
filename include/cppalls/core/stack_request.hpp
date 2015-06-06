@@ -9,6 +9,7 @@
 namespace cppalls {
 
 class CORE_EXPORT stack_request : public request {
+protected:
     cppalls::detail::stack_pimpl<
         boost::container::small_vector<unsigned char, 128, boost::container::new_allocator<unsigned char> >
     > pimpl_;
@@ -26,6 +27,7 @@ public:
     unsigned char* begin() noexcept;
     unsigned char* end() noexcept;
     void resize(std::size_t size);
+    void shrink();
 
     ~stack_request() noexcept override;
 };

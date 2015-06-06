@@ -10,13 +10,16 @@
 namespace cppalls { namespace detail {
 
 template <class Socket>
-class sync_connection {
+class sync_connection : protected cppalls::stack_request {
 protected:
     cppalls::detail::stack_pimpl<Socket>    s_;
-    cppalls::stack_request                  request_;
     cppalls::stack_response                 response_;
 
+    void extract_data(unsigned char* data, std::size_t size) override;
+
 public:
+    typedef cppalls::stack_request request_t;
+
     explicit sync_connection(const char* address, const char* port);
 
     void write();
@@ -24,10 +27,7 @@ public:
     void close();
     ~sync_connection();
 
-    template <class T>
-    cppalls::request& operator>>(T& val) {
-        return request_ >> val;
-    }
+    using request_t::operator >>;
 
     template <class T>
     cppalls::response& operator<<(const T& val) {

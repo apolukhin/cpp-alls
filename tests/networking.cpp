@@ -24,9 +24,7 @@ void test_send_receive_generic(T from, T to, const char* port) {
     for (T i = from; i < to; ++i) {
         Connection socket("127.0.0.1", port);
         socket << i;
-        socket.write();
 
-        socket.read(sizeof(T));
         T res;
         socket >> res;
         ASSERT_EQ(res, i);
@@ -39,9 +37,7 @@ void test_send_receive_generic_noclose(T from, T to, const char* port) {
 
     for (T i = from; i < to; ++i) {
         socket << i;
-        socket.write();
 
-        socket.read(sizeof(T));
         T res;
         socket >> res;
         ASSERT_EQ(res, i);
@@ -54,9 +50,7 @@ void test_send_receive_str_generic(std::string s, size_t iterations, const char*
     for (size_t i = 0; i < iterations; ++i) {
         Connection socket("127.0.0.1", port);
         socket << s;
-        socket.write();
 
-        socket.read(s.size() + sizeof(unsigned int));
         std::string res;
         socket >> res;
         ASSERT_EQ(res, s);
@@ -69,9 +63,7 @@ void test_send_receive_str_generic_noclose(std::string s, size_t iterations, con
     Connection socket("127.0.0.1", port);
     for (size_t i = 0; i < iterations; ++i) {
         socket << s;
-        socket.write();
 
-        socket.read(s.size() + sizeof(unsigned int));
         std::string res;
         socket >> res;
         ASSERT_EQ(res, s);
