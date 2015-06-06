@@ -1,32 +1,27 @@
 applications:
     - type: "boost_logger_core"
-      params:
-            Core:
-                DisableLogging: false
-            Sinks:
-                Main:
-                    Destination: Console
-                    Format: "%TimeStamp% %Severity% [%Channel% %tag%]: %Message%"
-                    Filter: "%tag% = ignoreiologger"
-                    AutoFlush: true
-                    Async: true
+      Core:
+            DisableLogging: false
+      Sinks:
+            Main:
+                Destination: Console
+                Format: "%TimeStamp% %Severity% [%Channel% %tag%]: %Message%"
+                Filter: "%tag% = ignoreiologger"
+                AutoFlush: true
+                Async: true
 
     - type: "boost_logger"
       instance-name: "core_logger"
-      params:
-            tag: "core"
+      tag: "core"
 
     - type: "boost_logger"
       instance-name: "warning_logger"
-      params:
-            tag: "warning-logger"
+      tag: "warning-logger"
 
     - type: "boost_logger"
       instance-name: "debug_logger"
-      params:
-            tag: "debug-logger"
+      tag: "debug-logger"
 
     - type: "boost_logger"
       instance-name: iologger
-      params:
-            tag: iologger
+      tag: iologger

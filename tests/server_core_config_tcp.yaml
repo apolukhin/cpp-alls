@@ -1,31 +1,27 @@
 applications:
-    - type: boost_logger_core
-      params:
-            Core:
-                DisableLogging: false
-            Sinks:
-                Main:
-                    Destination: Console
-                    Format: "%TimeStamp% %Severity% [%Channel% %tag%]: %Message%"
-                    Filter: "%tag% = ignoreiologger"
-                    AutoFlush: true
-                    Async: false
+    -   type: boost_logger_core
+        Core:
+            DisableLogging: false
+        Sinks:
+            Main:
+                Destination: Console
+                Format: "%TimeStamp% %Severity% [%Channel% %tag%]: %Message%"
+                Filter: "%tag% = ignoreiologger"
+                AutoFlush: true
+                Async: false
 
     - type: boost_logger
       instance-name: tcp_logger
-      params:
-            tag: tcp
+      tag: tcp
 
     - type: boost_logger
       instance-name: io_logger
-      params:
-            tag: iologger
+      tag: iologger
 
     - type: boost_io_service
       instance-name: io
-      params:
-            logger: io_logger
-            threads: 2
+      logger: io_logger
+      threads: 2
 
     - type: echo_int_connection
     - type: echo_short_connection
@@ -37,63 +33,57 @@ applications:
 
     - type: tcp_acceptor
       instance-name: ac1
-      params:
-          logger: tcp_logger
-          listen-port: 18080
-          listen-address: 127.0.0.1
-          io_service: io
-          reuse-address: true
-          processor: echo_int_connection
+      logger: tcp_logger
+      listen-port: 18080
+      listen-address: 127.0.0.1
+      io_service: io
+      reuse-address: true
+      processor: echo_int_connection
 
     - type: tcp_acceptor
       instance-name: ac2
-      params:
-          logger: tcp_logger
-          listen-port: 18081
-          listen-address: 127.0.0.1
-          io_service: io
-          reuse-address: true
-          processor: echo_short_connection
+      logger: tcp_logger
+      listen-port: 18081
+      listen-address: 127.0.0.1
+      io_service: io
+      reuse-address: true
+      processor: echo_short_connection
 
     - type: tcp_acceptor
       instance-name: ac3
-      params:
-          logger: tcp_logger
-          listen-port: 18082
-          listen-address: 127.0.0.1
-          io_service: io
-          reuse-address: true
-          processor: echo_string_connection
+      logger: tcp_logger
+      listen-port: 18082
+      listen-address: 127.0.0.1
+      io_service: io
+      reuse-address: true
+      processor: echo_string_connection
 
     - type: tcp_acceptor
       instance-name: ac4
-      params:
-          logger: tcp_logger
-          listen-port: 19080
-          listen-address: 127.0.0.1
-          io_service: io
-          reuse-address: true
-          processor: echo_int_connection_noclose
+      logger: tcp_logger
+      listen-port: 19080
+      listen-address: 127.0.0.1
+      io_service: io
+      reuse-address: true
+      processor: echo_int_connection_noclose
 
     - type: tcp_acceptor
       instance-name: ac5
-      params:
-          logger: tcp_logger
-          listen-port: 19081
-          listen-address: 127.0.0.1
-          io_service: io
-          reuse-address: true
-          processor: echo_short_connection_noclose
+      logger: tcp_logger
+      listen-port: 19081
+      listen-address: 127.0.0.1
+      io_service: io
+      reuse-address: true
+      processor: echo_short_connection_noclose
 
     - type: tcp_acceptor
       instance-name: ac6
-      params:
-          logger: tcp_logger
-          listen-port: 19082
-          listen-address: 127.0.0.1
-          io_service: io
-          reuse-address: true
-          processor: echo_string_connection_noclose
+      logger: tcp_logger
+      listen-port: 19082
+      listen-address: 127.0.0.1
+      io_service: io
+      reuse-address: true
+      processor: echo_string_connection_noclose
 
 core:
     binaries:

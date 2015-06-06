@@ -143,7 +143,7 @@ namespace {
             );
 
             oss << "Starting '" << app_type << "' with name '" << app_node["instance-name"].as<std::string>(app_type) << "'\n";
-            shared_app->start(app_node["params"]);
+            shared_app->start(app_node);
 
             instances.insert(std::make_pair(
                 app_node["instance-name"].as<std::string>(app_type),
@@ -160,7 +160,7 @@ namespace {
             YAML::Node node = YAML::Load(
                 "type: cpp_logger\n"
                 "instance-name: __basic-logger\n"
-                "params: {severity: error}\n"
+                "severity: error\n"
             );
 
             std::ostringstream ignore;
@@ -193,9 +193,17 @@ namespace {
             std::sort(configs.begin(), configs.end());
 
             for (auto&& conf_path : configs) {
-                auto another_conf = YAML::LoadFile(conf_path);
-                for (auto&& app : another_conf["applications"]) {
-                    config_to_patch["applications"].push_back(std::move(app));
+                try {
+                    auto another_conf = YAML::LoadFile(conf_path);
+
+                    for (auto&& app : another_conf["applications"]) {
+                        config_to_patch["applications"].push_back(std::move(app));
+                    }
+                } catch (const std::exception& e) {
+                    boost::throw_exception(error_runtime(
+                        "Error while loading dependent configuration file '" + conf_path +  "' from directory '" + dll::program_location().parent_path().string()
+                            + "':\n    " + e.what()
+                    ));
                 }
             }
         }
@@ -205,23 +213,23 @@ namespace {
 
             try {
                 config = YAML::LoadFile(config_path_);
-
-
-                if (config["core"]["configs"]) {
-                    if (config["core"]["configs"].IsSequence()) {
-                        for (auto&& conf : config["core"]["configs"]) {
-                            read_single_config_file(conf.as<std::string>(), config);
-                        }
-                    } else {
-                        read_single_config_file(config["core"]["configs"].as<std::string>(), config);
-                    }
-
-                }
             } catch (const std::exception& e) {
                 boost::throw_exception(error_runtime(
                     "Error while loading configuration file '" + config_path_ +  "' from directory '" + dll::program_location().parent_path().string()
-                        + "'\n    " + e.what()
+                        + "':\n    " + e.what()
                 ));
+            }
+
+            if (!config["core"]["configs"]) {
+                return std::move(config);
+            }
+
+            if (config["core"]["configs"].IsSequence()) {
+                for (auto&& conf : config["core"]["configs"]) {
+                    read_single_config_file(conf.as<std::string>(), config);
+                }
+            } else {
+                read_single_config_file(config["core"]["configs"].as<std::string>(), config);
             }
 
             return std::move(config);
@@ -312,7 +320,7 @@ namespace {
                     instances_.insert(*new_instances.find(instance));
                 } else {
                     oss << "Reloading application instance '" << instance << "'\n";
-                    instance_it->second->reload(app_node["params"]);
+                    instance_it->second->reload(app_node);
                     new_instances.insert(*instance_it);
                 }
             }
