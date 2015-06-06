@@ -28,9 +28,13 @@ sync_connection<Socket>::sync_connection(const char* address, const char* port)
 
 template <class Socket>
 void sync_connection<Socket>::write() {
-    socket().send(
-        boost::asio::buffer(response_.begin(), response_.end() - response_.begin())
-    );
+    const auto size = response_.end() - response_.begin();
+    std::size_t offset = 0;
+    do {
+        offset += socket().send(
+            boost::asio::buffer(response_.begin() + offset, size - offset)
+        );
+    } while (offset != size);
 
     response_.clear();
 }
@@ -39,9 +43,13 @@ template <class Socket>
 void sync_connection<Socket>::read(std::size_t size) {
     request_.clear();
     request_.resize(size);
-    socket().receive(
-        boost::asio::buffer(request_.begin(), size)
-    );
+
+    std::size_t offset = 0;
+    do {
+        offset += socket().receive(
+            boost::asio::buffer(request_.begin() + offset, size - offset)
+        );
+    } while (offset != size);
 }
 
 template <class Socket>

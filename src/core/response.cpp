@@ -1,9 +1,10 @@
 #include <cppalls/core/response.hpp>
 #include <boost/endian/conversion.hpp>
+#include <boost/numeric/conversion/cast.hpp>
 
 namespace {
     template <class StreamT, class T>
-    StreamT& do_ostream(StreamT* stream, const T& val) {
+    StreamT& do_ostream(StreamT* stream, T& val) {
         boost::endian::native_to_little_inplace(val);
         stream->put_data(reinterpret_cast<const unsigned char*>(&val), sizeof(val));
         return *stream;
@@ -62,7 +63,7 @@ response& response::operator<< (long double val) {
 }
 
 response& response::operator<< (const std::string& val) {
-    const unsigned int size = val.size();
+    const unsigned int size = boost::numeric_cast<unsigned int>(val.size());
     (*this) << size;
     put_data(reinterpret_cast<const unsigned char*>(val.data()), size);
     return *this;

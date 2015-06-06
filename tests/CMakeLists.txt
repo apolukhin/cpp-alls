@@ -14,6 +14,7 @@ add_executable(all_tests
     server_core_config_io.yaml
     server_core_config_io20.yaml
     server_core_config_tcp.yaml
+    server_core_config_udp.yaml
     server_core_confs/010_boost_loggers.yaml
     server_core_confs/020_boost_io_service.yaml
     server_core_confs/021_boost_io_service.yaml

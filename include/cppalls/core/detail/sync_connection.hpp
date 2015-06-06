@@ -11,6 +11,7 @@ namespace cppalls { namespace detail {
 
 template <class Socket>
 class sync_connection {
+protected:
     cppalls::detail::stack_pimpl<Socket>    s_;
     cppalls::stack_request                  request_;
     cppalls::stack_response                 response_;

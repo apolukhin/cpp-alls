@@ -5,7 +5,7 @@ namespace {
     template <class StreamT, class T>
     StreamT& do_istream(StreamT* stream, T& val) {
         stream->extract_data(reinterpret_cast<unsigned char *>(&val), sizeof(val));
-        boost::endian::native_to_little_inplace(val);
+        boost::endian::little_to_native_inplace(val);
         return *stream;
     }
 } // anonymous namespace
@@ -74,7 +74,7 @@ request& request::operator>> (long double& val) {
 request& request::operator>> (std::string& val) {
     unsigned int size;
     (*this) >> size;
-    val.resize(size + 1);
+    val.resize(size);
     extract_data(reinterpret_cast<unsigned char*>(&val[0]), size);
     return *this;
 }

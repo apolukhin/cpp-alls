@@ -36,6 +36,7 @@ applications:
     - type: echo_string_connection_noclose
 
     - type: udp_acceptor
+      instance-name: ac1
       params:
           logger: udp_logger
           listen-port: 18080
@@ -45,6 +46,7 @@ applications:
           processor: echo_int_connection
 
     - type: udp_acceptor
+      instance-name: ac2
       params:
           logger: udp_logger
           listen-port: 18081
@@ -54,8 +56,19 @@ applications:
           processor: echo_short_connection
 
 
+    - type: udp_acceptor
+      instance-name: ac3
+      params:
+          logger: udp_logger
+          listen-port: 18082
+          listen-address: 127.0.0.1
+          io_service: io
+          reuse-address: true
+          processor: echo_string_connection
+
 
     - type: udp_acceptor
+      instance-name: ac4
       params:
           logger: udp_logger
           listen-port: 19080
@@ -65,6 +78,7 @@ applications:
           processor: echo_int_connection_noclose
 
     - type: udp_acceptor
+      instance-name: ac5
       params:
           logger: udp_logger
           listen-port: 19081
@@ -72,6 +86,17 @@ applications:
           io_service: io
           reuse-address: true
           processor: echo_short_connection_noclose
+
+
+    - type: udp_acceptor
+      instance-name: ac6
+      params:
+          logger: udp_logger
+          listen-port: 19082
+          listen-address: 127.0.0.1
+          io_service: io
+          reuse-address: true
+          processor: echo_string_connection_noclose
 
 core:
     binaries:
