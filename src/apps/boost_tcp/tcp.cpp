@@ -92,15 +92,15 @@ class tcp final: public cppalls::api::application {
 
 public:
     void start(const YAML::Node& conf) override {
-        log_ = cppalls::server::get<logger_t>(
+        log_ = cppalls::app::get<logger_t>(
             conf["logger"].as<std::string>()
         );
 
-        processor_ = cppalls::server::get<connection_processor_t>(
+        processor_ = cppalls::app::get<connection_processor_t>(
             conf["processor"].as<std::string>()
         );
 
-        io_service_ = cppalls::server::get<io_service_t>(
+        io_service_ = cppalls::app::get<io_service_t>(
             conf["io_service"].as<std::string>()
         );
 

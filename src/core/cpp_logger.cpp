@@ -1,15 +1,13 @@
+#include "cpp_logger.hpp"
+
 #include <cppalls/api/logger.hpp>
 #include <cppalls/core/export.hpp>
 #include <yaml-cpp/yaml.h>
-#include <iostream>
+#include <utility>
 
-namespace {
+namespace cppalls {
 
-class cpp_logger final: public cppalls::api::logger {
-    std::ostream* logger_;
-    cppalls::api::logger::severity_level lvl_;
-
-    static const char* severity(cppalls::api::logger::severity_level lvl) {
+    const char* cpp_logger::severity(cppalls::api::logger::severity_level lvl) {
         switch (lvl) {
         case TRACE:     return "TRACE: ";
         case DEBUG:     return "DEBUG: ";
@@ -20,7 +18,7 @@ class cpp_logger final: public cppalls::api::logger {
         }
     }
 
-    cppalls::api::logger::severity_level severity(const std::string& sev) {
+    cppalls::api::logger::severity_level cpp_logger::severity(const std::string& sev) {
         if (sev == "TRACE" || sev == "trace") {
             return cppalls::api::logger::TRACE;
         } else if (sev == "DEBUG" || sev == "debug") {
@@ -40,13 +38,12 @@ class cpp_logger final: public cppalls::api::logger {
         return cppalls::api::logger::TRACE;
     }
 
-public:
-    cpp_logger()
-        : logger_(&std::cerr)
+    cpp_logger::cpp_logger(std::ostream& logger)
+        : logger_(&logger)
         , lvl_(cppalls::api::logger::TRACE)
     {}
 
-    void start(const YAML::Node& config) override {
+    void cpp_logger::start(const YAML::Node& config) {
         const auto sink = config["sink"].as<std::string>("cerr");
 
         if (sink == "cerr") {
@@ -61,24 +58,49 @@ public:
         lvl_ = severity(config["severity"].as<std::string>("trace"));
     }
 
-    void stop() override {
+    void cpp_logger::stop() {
         /*noop*/
     }
 
-    void log(cppalls::api::logger::severity_level lvl, const char* msg) override {
+    void cpp_logger::log(cppalls::api::logger::severity_level lvl, const char* msg) {
         if (lvl >= lvl_) {
             *logger_ << severity(lvl) << msg << '\n';
         }
     }
 
-    static std::unique_ptr<cppalls::api::application> create() {
+    std::unique_ptr<cppalls::api::application> cpp_logger::create() {
         return std::unique_ptr<cppalls::api::application>(new cpp_logger());
     }
 
-    ~cpp_logger() override {}
-};
+    cpp_logger::~cpp_logger() {}
 
-} // namespace anonymous
 
-CPPALLS_APPLICATION(cpp_logger::create, cpp_logger)
+
+    delayed_logger::delayed_logger() noexcept {}
+
+    void delayed_logger::reset(api::logger& l) {
+        for (auto&& rec : records) {
+            l.log(rec.first, rec.second.c_str());
+        }
+
+        records.clear();
+    }
+
+    void delayed_logger::log(cppalls::api::logger::severity_level lvl, const char* msg) {
+        records.push_back(std::make_pair(
+            lvl, msg
+        ));
+    }
+
+    void delayed_logger::start(const YAML::Node& /*config*/) {}
+    void delayed_logger::stop() {}
+
+    delayed_logger::~delayed_logger() {
+        cpp_logger l;
+        reset(l);
+    }
+
+} // namespace cppalls
+
+CPPALLS_APPLICATION(cppalls::cpp_logger::create, cpp_logger)
 

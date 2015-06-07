@@ -3,6 +3,8 @@
 #include "cppalls/core/logging.hpp"
 #include "cppalls/api/logger.hpp"
 
+#include "cpp_logger.hpp"
+
 #include <boost/filesystem/operations.hpp>
 #include <boost/filesystem/path.hpp>
 #include <boost/container/small_vector.hpp>
@@ -32,7 +34,32 @@ namespace {
         }
     };
 
+    static inline std::string get_config_location_or_die_helping(int argc, const char * const *argv) {
+        static const char default_config_path[] = "config.yaml";
+        namespace po = boost::program_options;
+        std::string config_path;
 
+        po::options_description desc("Server basic options");
+        desc.add_options()
+           ("help", "produce help message")
+           ("config",
+            po::value<std::string>(&config_path)
+                ->default_value(default_config_path),
+                "set name and path to the configuration file")
+        ;
+
+        po::variables_map vm;
+        po::store(po::parse_command_line(argc, argv, desc), vm);
+        po::notify(vm);
+
+        if (vm.count("help")) {
+           std::cout << desc << "\n\n"
+                << "All other options must be set up in a YAML config file.";
+           exit(1);
+        }
+
+        return std::move(config_path);
+    }
 
     class server_impl_t {
         typedef std::unordered_map<std::string, boost::filesystem::path>            app_to_path_t;
@@ -43,40 +70,14 @@ namespace {
         std::string                     config_path_;
         std::shared_ptr<api::logger>    log_;
 
-        static inline std::string get_config_location_or_die_helping(int argc, const char * const *argv) {
-            static const char default_config_path[] = "config.yaml";
-            namespace po = boost::program_options;
-            std::string config_path;
 
-            po::options_description desc("Server basic options");
-            desc.add_options()
-               ("help", "produce help message")
-               ("config",
-                po::value<std::string>(&config_path)
-                    ->default_value(default_config_path),
-                    "set name and path to the configuration file")
-            ;
-
-            po::variables_map vm;
-            po::store(po::parse_command_line(argc, argv, desc), vm);
-            po::notify(vm);
-
-            if (vm.count("help")) {
-               std::cout << desc << "\n\n"
-                    << "All other options must be set up in a YAML config file.";
-               exit(1);
-            }
-
-            return std::move(config_path);
-        }
-
-        void find_apps_in_entry(const std::string& entry, std::ostringstream& oss, app_to_path_t& app_to_path) const {
+        void find_apps_in_entry(const std::string& entry, app_to_path_t& app_to_path) const {
             filesystem::path p(entry);
             if (p.is_relative()) {
                 p =  boost::filesystem::path(config_path_).parent_path() / p;
             }
 
-            const auto search_in_binary = [&app_to_path, &oss](const filesystem::path& p) {
+            const auto search_in_binary = [&app_to_path, this](const filesystem::path& p) {
                 try {
                     dll::library_info info(p);
                     auto apps = info.symbols("cppalls");
@@ -84,7 +85,7 @@ namespace {
                         app_to_path.emplace(std::move(app), p);
                     }
                 } catch (const std::exception& e) {
-                    oss << "\nFailed opening plugin `" << p << "`: " << e.what();
+                    LINFO(log_) << "Failed opening plugin `" << p << "`: " << e.what();
                 }
             };
 
@@ -102,7 +103,7 @@ namespace {
             }
         }
 
-        void fill_apps_to_path(const YAML::Node& config, std::ostringstream& oss, app_to_path_t& app_to_path) const {
+        void fill_apps_to_path(const YAML::Node& config, app_to_path_t& app_to_path) const {
             static const std::string default_apps_dir = "./apps/";
 
             dll::library_info info(dll::this_line_location());
@@ -113,13 +114,13 @@ namespace {
 
             YAML::Node bins = config["core"]["binaries"];
             if (bins.IsScalar()) {
-                find_apps_in_entry(bins.as<std::string>(), oss, app_to_path);
+                find_apps_in_entry(bins.as<std::string>(), app_to_path);
             } else if (bins.IsSequence()) {
                 for (auto&& v : bins) {
-                    find_apps_in_entry(v.as<std::string>(), oss, app_to_path);
+                    find_apps_in_entry(v.as<std::string>(), app_to_path);
                 }
             } else if (!bins) {
-                find_apps_in_entry(default_apps_dir, oss, app_to_path);
+                find_apps_in_entry(default_apps_dir, app_to_path);
             } else {
                 boost::throw_exception(error_runtime(
                     "Invalid configuration for `core: binaries:` section. Binaries must be a sinle path to binaries or a sequence of paths [path1, path2]"
@@ -127,7 +128,7 @@ namespace {
             }
         }
 
-        static void start_instance(const YAML::Node& app_node, const app_to_path_t& app_to_path, std::ostringstream& oss, instances_t& instances) {
+        static std::shared_ptr<api::application> start_instance(const YAML::Node& app_node, const app_to_path_t& app_to_path, api::logger& log, instances_t& instances) {
             const auto app_type = app_node["type"].as<std::string>();
             const auto it = app_to_path.find(app_type);
             if (it == app_to_path.cend()) {
@@ -142,30 +143,37 @@ namespace {
                 ptr_holding_application_deleter(std::move(lib))
             );
 
-            oss << "Starting '" << app_type << "' with name '" << app_node["instance-name"].as<std::string>(app_type) << "'\n";
+            LDEBUG(log) << "Starting '" << app_type << "' with name '" << app_node["instance-name"].as<std::string>(app_type) << "'\n";
             shared_app->start(app_node);
 
+            auto instance_name = app_node["instance-name"].as<std::string>(app_type);
+            if (instances.count(instance_name)) {
+                boost::throw_exception(error_runtime(
+                    "Instance with name '" + instance_name + "' already exist."
+                ));
+            }
+
             instances.insert(std::make_pair(
-                app_node["instance-name"].as<std::string>(app_type),
-                std::move(shared_app)
+                std::move(instance_name),
+                shared_app
             ));
+
+            return std::move(shared_app);
         }
 
         void init_logger(const YAML::Node& app_node) {
+            auto old_logger = log_;
+
+
             if (app_node["core"]["logger"]) {
-                log_ = server::get<api::logger>(app_node["core"]["logger"].as<std::string>());
-                return;
+                log_ = app::get<api::logger>(app_node["core"]["logger"].as<std::string>());
+            } else {
+                log_ = std::make_shared<cpp_logger>();
             }
 
-            YAML::Node node = YAML::Load(
-                "type: cpp_logger\n"
-                "instance-name: __basic-logger\n"
-                "severity: error\n"
-            );
-
-            std::ostringstream ignore;
-            start_instance(node, app_to_path_, ignore, instances_);
-            log_ = server::get<api::logger>("__basic-logger");
+            if (auto p = std::dynamic_pointer_cast<delayed_logger>(old_logger)) {
+                p->reset(*log_);
+            }
         }
 
         void read_single_config_file(const std::string& file_or_path, YAML::Node& config_to_patch) const {
@@ -238,25 +246,27 @@ namespace {
     public:
         server_impl_t()
             : config_path_()
+            , log_(std::make_shared<delayed_logger>())
         {}
+
+        std::shared_ptr<api::application> instance_construct(const char* config) {
+            return start_instance(YAML::Load(config), app_to_path_, *log_, instances_);
+        }
+
+        void instance_free(const char* instance_name) {
+            instances_.erase(instance_name);
+        }
 
         void start() {
             const YAML::Node config = read_config();
 
-            std::ostringstream oss;
-            fill_apps_to_path(config, oss, app_to_path_);
+            fill_apps_to_path(config, app_to_path_);
 
             for (auto&& app_node : config["applications"]) {
-                start_instance(app_node, app_to_path_, oss, instances_);
+                start_instance(app_node, app_to_path_, *log_, instances_);
             }
 
             init_logger(config);
-
-
-            if (!oss.str().empty()) {
-                oss << '\n';
-                log_->log(api::logger::WARNING, oss.str().c_str());
-            }
         }
 
         void start(const char* path_to_config) {
@@ -273,7 +283,6 @@ namespace {
 
             return std::move(res);
         }
-
 
         std::shared_ptr<api::application> get(const char* instance_name) {
             auto it = instances_.find(instance_name);
@@ -297,9 +306,8 @@ namespace {
         void reload() {
             const YAML::Node config = read_config();
 
-            std::ostringstream oss;
             app_to_path_t new_app_to_path;
-            fill_apps_to_path(config, oss, new_app_to_path);
+            fill_apps_to_path(config, new_app_to_path);
             if (!app_to_path_.empty() && new_app_to_path != app_to_path_) {
                 boost::throw_exception(error_runtime(
                     "Currently server does not support reload() on changed application binaries"
@@ -316,10 +324,10 @@ namespace {
                 );
                 auto instance_it = instances_.find(instance);
                 if (instance_it == instances_.cend()) {
-                    start_instance(app_node, new_app_to_path, oss, new_instances);
+                    start_instance(app_node, new_app_to_path, *log_, new_instances);
                     instances_.insert(*new_instances.find(instance));
                 } else {
-                    oss << "Reloading application instance '" << instance << "'\n";
+                    LDEBUG(log_) << "Reloading application instance '" << instance << "'\n";
                     instance_it->second->reload(app_node);
                     new_instances.insert(*instance_it);
                 }
@@ -333,14 +341,7 @@ namespace {
             app_to_path_.swap(new_app_to_path);
             init_logger(config);
 
-
-            if (!oss.str().empty()) {
-                oss << '\n';
-                log_->log(api::logger::WARNING, oss.str().c_str());
-            }
-
-
-            LDEBUG(*log_) << "Resulting confilg file is following:\n" << config;
+            LDEBUG(log_) << "Resulting confilg file is following:\n" << config;
         }
 
         void reload(const char* path_to_config) {
@@ -378,17 +379,33 @@ std::vector<std::string> server::available_apps() {
 }
 
 
-std::shared_ptr<api::application> server::get(const char* instance_name) {
+std::shared_ptr<api::application> app::get(const char* instance_name) {
     return server_impl.get(instance_name);
 }
 
-std::shared_ptr<api::application> server::get(const std::string& instance_name) {
-    return get(instance_name.c_str());
+std::shared_ptr<api::application> app::get(const std::string& instance_name) {
+    return server_impl.get(instance_name.c_str());
 }
 
-void server::exception_for_get(const std::type_info& type, const char* name) {
+std::shared_ptr<api::application> app::construct(const char* config) {
+    return server_impl.instance_construct(config);
+}
+
+std::shared_ptr<api::application> app::construct(const std::string& config) {
+    return server_impl.instance_construct(config.c_str());
+}
+
+void app::free(const char* config) {
+    server_impl.instance_free(config);
+}
+
+void app::free(const std::string& config) {
+    server_impl.instance_free(config.c_str());
+}
+
+void app::exception_for_get(const std::type_info& type, const char* name) {
     boost::throw_exception(error_runtime(
-        "Failed to call server::get< " + boost::typeindex::type_index(type).pretty_name() + " >(\"" + name + "\")"
+        "Failed to call app::get< " + boost::typeindex::type_index(type).pretty_name() + " >(\"" + name + "\")"
     ));
 }
 

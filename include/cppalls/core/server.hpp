@@ -15,16 +15,23 @@ struct CORE_EXPORT server {
     ~server() = delete;
 
     static void start(const char* path_to_config = "./config.yaml");
-
     static void stop();
-
     static void reload();
     static void reload(const char* path_to_config);
-
     static std::vector<std::string> available_apps();
+};
+
+struct CORE_EXPORT app {
+    // this class must not be instantiated
+    app() = delete;
+    ~app() = delete;
 
     static std::shared_ptr<api::application> get(const std::string& instance_name);
     static std::shared_ptr<api::application> get(const char* instance_name);
+    static std::shared_ptr<api::application> construct(const std::string& config);
+    static std::shared_ptr<api::application> construct(const char* config);
+    static void free(const std::string& config);
+    static void free(const char* config);
 
     template <class T>
     static std::shared_ptr<T> get(const char* instance_name) {

@@ -30,72 +30,72 @@ TEST(server, basic_start_stop_reload) {
     ASSERT_TRUE(!apps.empty());
     ASSERT_TRUE(apps == server::available_apps());
 
-    auto logger_app = server::get<api::logger>("warning_logger");
+    auto logger_app = app::get<api::logger>("warning_logger");
     ASSERT_TRUE(!!logger_app);
-    EXPECT_THROW(!!server::get<fake_api>("warning_logger"), error_runtime);
-    EXPECT_THROW(!!server::get<api::logger>("app_that_does_not_exist"), error_runtime);
+    EXPECT_THROW(!!app::get<fake_api>("warning_logger"), error_runtime);
+    EXPECT_THROW(!!app::get<api::logger>("app_that_does_not_exist"), error_runtime);
 
 
     server::stop();
     ASSERT_TRUE(server::available_apps().empty());
 
-    EXPECT_THROW(!!server::get<api::logger>("warning_logger"), error_runtime);
-    EXPECT_THROW(!!server::get<fake_api>("warning_logger"), error_runtime);
-    EXPECT_THROW(!!server::get<api::logger>("app_that_does_not_exist"), error_runtime);
+    EXPECT_THROW(!!app::get<api::logger>("warning_logger"), error_runtime);
+    EXPECT_THROW(!!app::get<fake_api>("warning_logger"), error_runtime);
+    EXPECT_THROW(!!app::get<api::logger>("app_that_does_not_exist"), error_runtime);
 
     server::stop();
     ASSERT_TRUE(server::available_apps().empty());
 
-    EXPECT_THROW(!!server::get<api::logger>("warning_logger"), error_runtime);
-    EXPECT_THROW(!!server::get<fake_api>("warning_logger"), error_runtime);
-    EXPECT_THROW(!!server::get<api::logger>("app_that_does_not_exist"), error_runtime);
+    EXPECT_THROW(!!app::get<api::logger>("warning_logger"), error_runtime);
+    EXPECT_THROW(!!app::get<fake_api>("warning_logger"), error_runtime);
+    EXPECT_THROW(!!app::get<api::logger>("app_that_does_not_exist"), error_runtime);
 
 
     server::reload();
     // servr was stopped, so old app != new app
-    ASSERT_TRUE(logger_app != server::get<api::logger>("warning_logger"));
+    ASSERT_TRUE(logger_app != app::get<api::logger>("warning_logger"));
     ASSERT_TRUE(apps == server::available_apps());
-    ASSERT_TRUE(!!server::get<api::logger>("warning_logger"));
-    EXPECT_THROW(!!server::get<fake_api>("warning_logger"), error_runtime);
-    EXPECT_THROW(!!server::get<api::logger>("app_that_does_not_exist"), error_runtime);
+    ASSERT_TRUE(!!app::get<api::logger>("warning_logger"));
+    EXPECT_THROW(!!app::get<fake_api>("warning_logger"), error_runtime);
+    EXPECT_THROW(!!app::get<api::logger>("app_that_does_not_exist"), error_runtime);
 
     server::reload("../../cpp-alls/tests/server_core_config_cerr.yaml");
     // server was stopped, so old app != new app
-    ASSERT_TRUE(logger_app != server::get<api::logger>("warning_logger"));
+    ASSERT_TRUE(logger_app != app::get<api::logger>("warning_logger"));
     ASSERT_TRUE(apps == server::available_apps());
-    ASSERT_TRUE(!!server::get<api::logger>("warning_logger"));
-    EXPECT_THROW(!!server::get<fake_api>("warning_logger"), error_runtime);
-    EXPECT_THROW(!!server::get<api::logger>("app_that_does_not_exist"), error_runtime);
+    ASSERT_TRUE(!!app::get<api::logger>("warning_logger"));
+    EXPECT_THROW(!!app::get<fake_api>("warning_logger"), error_runtime);
+    EXPECT_THROW(!!app::get<api::logger>("app_that_does_not_exist"), error_runtime);
 }
 
 TEST(server, reload_same_apps) {
     server_guard guard;
-    auto logger_app = server::get<api::logger>("warning_logger");
+    auto logger_app = app::get<api::logger>("warning_logger");
 
     server::reload();
     // Server was not stopped, so new app == old app
-    ASSERT_TRUE(logger_app == server::get<api::logger>("warning_logger"));
-    EXPECT_THROW(!!server::get<api::logger>("__basic-logger"), error_runtime);
+    ASSERT_TRUE(logger_app == app::get<api::logger>("warning_logger"));
+    EXPECT_THROW(!!app::get<api::logger>("__basic-logger"), error_runtime);
 
 
     server::reload("../../cpp-alls/tests/server_core_config_cerr.yaml");
     // Server was not stopped, so new app == old app
-    ASSERT_TRUE(logger_app == server::get<api::logger>("warning_logger"));
-    ASSERT_TRUE(server::get<api::logger>("__basic-logger") != server::get<api::logger>("warning_logger"));
+    ASSERT_TRUE(logger_app == app::get<api::logger>("warning_logger"));
+    EXPECT_THROW(!!app::get<api::logger>("__basic-logger"), error_runtime);
 }
 
 
 TEST(server, app_instance) {
     server_guard guard;
 
-    std::shared_ptr<api::logger> l1 = server::get<api::logger>("warning_logger");
-    auto l2 = server::get("warning_logger");
+    std::shared_ptr<api::logger> l1 = app::get<api::logger>("warning_logger");
+    auto l2 = app::get("warning_logger");
     ASSERT_TRUE(l1->version() == l2->version());
     ASSERT_TRUE(l1 == l2);
     LINFO(*l1) << "Works!";
 
-    std::shared_ptr<api::logger> l1_deb = server::get<api::logger>("debug_logger");
-    auto l2_deb = server::get("debug_logger");
+    std::shared_ptr<api::logger> l1_deb = app::get<api::logger>("debug_logger");
+    auto l2_deb = app::get("debug_logger");
     ASSERT_TRUE(l1_deb->version() == l2_deb->version());
     ASSERT_TRUE(l1_deb == l2_deb);
     ASSERT_TRUE(l1 != l1_deb);

@@ -27,6 +27,7 @@ add_library(cppalls_core SHARED
 
     server.cpp
     cpp_logger.cpp
+    cpp_logger.hpp
     request.cpp
     stack_request.cpp
     response.cpp

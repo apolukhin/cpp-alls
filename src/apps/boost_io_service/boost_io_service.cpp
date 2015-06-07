@@ -78,7 +78,7 @@ public:
             work_.reset(new boost::asio::io_service::work(io_service_));
         }
 
-        log_ = cppalls::server::get<cppalls::api::logger>(config["logger"].as<std::string>());
+        log_ = cppalls::app::get<cppalls::api::logger>(config["logger"].as<std::string>());
         required_threads_count_ = threads_count_new;
 
         if (threads_count_old < threads_count_new) {
