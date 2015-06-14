@@ -122,11 +122,6 @@ public:
         );
     }
 
-    void close() override {
-        socket().shutdown(Protocol::shutdown_both);
-        socket().close();
-    }
-
     inline Protocol& socket() noexcept {
         return s_;
     }
@@ -137,9 +132,6 @@ public:
     }
 
     ~async_connection_fast() override {
-        boost::system::error_code ignore;
-        socket().shutdown(Protocol::shutdown_both, ignore);
-        socket().close(ignore);
     }
 };
 

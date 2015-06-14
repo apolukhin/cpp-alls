@@ -43,6 +43,18 @@ public:
             std::move(io_serv)
         );
     }
+
+    void close() override {
+        socket().shutdown(cppalls::detail::tcp_socket::shutdown_both);
+        socket().close();
+    }
+
+    ~tcp_connection_fast() {
+        boost::system::error_code ignore;
+        socket().shutdown(cppalls::detail::tcp_socket::shutdown_both, ignore);
+        socket().close(ignore);
+
+    }
 };
 
 class tcp final: public cppalls::api::application {

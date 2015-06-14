@@ -9,6 +9,8 @@ namespace cppalls {
 
 class CORE_EXPORT response {
 public:
+    static const std::size_t npos = static_cast<std::size_t>(-1);
+
     response() = default;
     response(const response&) = delete;
     response(response&&) = delete;
@@ -43,7 +45,7 @@ public:
         return *this;
     }
 
-    virtual void put_data(const unsigned char*, std::size_t size) = 0;
+    virtual void put_data(const unsigned char*, std::size_t size, std::size_t pos = npos) = 0;
     virtual void clear() noexcept = 0;
     virtual ~response() {}
 };

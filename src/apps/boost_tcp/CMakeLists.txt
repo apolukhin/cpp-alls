@@ -11,9 +11,9 @@ add_library(cppalls_tcp MODULE
     to_std_error_code.cpp
 
     # TODO:
-    #tcp_ssl.cpp
+    tcp_ssl.cpp
     #udp.cpp
 )
 
 
-target_link_libraries(cppalls_tcp PRIVATE)
+target_link_libraries(cppalls_tcp PRIVATE ssl)

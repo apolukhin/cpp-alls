@@ -7,16 +7,17 @@
 namespace cppalls {
 
 class CPPALLS_EXPORT udp_connection final : public cppalls::detail::sync_connection<cppalls::detail::udp_socket> {
+    void read(std::size_t /*size*/) override;
+
 public:
     typedef cppalls::detail::sync_connection<cppalls::detail::udp_socket>  base_t;
 
     explicit udp_connection(const char* address, const char* port);
 
     void write();
-    void read(std::size_t size);
-    void close();
     ~udp_connection();
 };
+
 
 } // namespace cppalls
 

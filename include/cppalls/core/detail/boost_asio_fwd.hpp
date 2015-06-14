@@ -5,6 +5,8 @@
 
 namespace boost { namespace asio {
 
+class io_service;
+
 template <typename Protocol>
 class stream_socket_service;
 
@@ -25,12 +27,24 @@ namespace boost { namespace asio { namespace ip {
     class udp;
 }}} // namespace boost::asio::ip
 
+namespace boost { namespace asio { namespace ssl {
+    class context;
+
+    template <class Stream>
+    class stream;
+}}} // namespace boost::asio::ssl
+
 
 namespace boost { namespace system {
     class error_code;
 }} // namespace boost::system
 
 namespace cppalls { namespace detail {
+    template <>
+    struct lazy_size<boost::asio::io_service> : size_constant<
+        32
+    > {};
+
 
     typedef boost::asio::basic_stream_socket<
         boost::asio::ip::tcp,
@@ -51,6 +65,20 @@ namespace cppalls { namespace detail {
     template <>
     struct lazy_size<udp_socket> : size_constant<
         32
+    > {};
+
+
+    template <>
+    struct lazy_size<boost::asio::ssl::context> : size_constant<
+        32
+    > {};
+
+
+    typedef boost::asio::ssl::stream<tcp_socket> tcp_ssl_socket;
+
+    template <>
+    struct lazy_size<tcp_ssl_socket> : size_constant<
+        512
     > {};
 
 }} // namespace cppalls::detail

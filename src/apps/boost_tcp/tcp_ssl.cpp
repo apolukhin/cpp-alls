@@ -28,7 +28,7 @@ typedef cppalls::api::io_service_provider   io_service_t;
 typedef cppalls::api::connection_processor  connection_processor_t;
 typedef cppalls::api::logger                logger_t;
 
-class tcp_ssl_connection_fast final: public async_connection_fast<cppalls::detail::tcp_ssl_socket, tcp_ssl_connection_fast> {
+class tcp_ssl_connection_fast final: public network::async_connection_fast<cppalls::detail::tcp_ssl_socket> {
     std::shared_ptr<boost::asio::ssl::context>      context_;
 
     explicit tcp_ssl_connection_fast(
@@ -36,7 +36,7 @@ class tcp_ssl_connection_fast final: public async_connection_fast<cppalls::detai
             , std::shared_ptr<connection_processor_t>&& processor
             , std::shared_ptr<io_service_t>&& io_service
             , std::shared_ptr<boost::asio::ssl::context>&& context)
-        : async_connection_fast(std::move(parent), std::move(processor), std::move(io_service))
+        : async_connection_fast(std::move(parent), std::move(processor), std::move(io_service), *context)
         , context_(std::move(context))
     {}
 
@@ -59,14 +59,14 @@ public:
     }
 
     void start() {
-        socket_->async_handshake(
+        socket().async_handshake(
             boost::asio::ssl::stream_base::server,
             network::make_custom_alloc_handler(
                 allocator(),
-                boost::bind(
+                std::bind(
                     &tcp_ssl_connection_fast::handle_handshake,
                     std::static_pointer_cast<tcp_ssl_connection_fast>(shared_from_this()),
-                    boost::asio::placeholders::error
+                    std::placeholders::_1
                 )
             )
         );
@@ -78,7 +78,17 @@ public:
             return;
         }
 
-        processor->operator()(*this);
+        processor_->operator()(*this);
+    }
+
+    void close() override {
+        socket().shutdown();
+    }
+
+    ~tcp_ssl_connection_fast() {
+        boost::system::error_code ignore;
+        socket().shutdown(ignore);
+
     }
 };
 
@@ -93,8 +103,8 @@ class tcp_ssl final: public cppalls::api::application {
     std::shared_ptr<boost::asio::ssl::context>      context_;
     bool                                            nodelay_;
 
-    std::shared_ptr<ssl_tcp> shared_from_this() {
-        return std::static_pointer_cast<ssl_tcp>(cppalls::api::application::shared_from_this());
+    std::shared_ptr<tcp_ssl> shared_from_this() {
+        return std::static_pointer_cast<tcp_ssl>(cppalls::api::application::shared_from_this());
     }
 
     void accept() {
@@ -102,7 +112,7 @@ class tcp_ssl final: public cppalls::api::application {
         auto& socket = c->socket();
         auto& allocator = c->allocator();
         acceptor_->async_accept(
-            socket,
+            socket.lowest_layer(),
             network::make_custom_alloc_handler(
                 allocator,
                 std::bind(
@@ -124,7 +134,7 @@ class tcp_ssl final: public cppalls::api::application {
         }
 
         if (!error) {
-            c->socket().set_option(boost::asio::ip::tcp::no_delay(nodelay_));
+            c->socket().lowest_layer().set_option(boost::asio::ip::tcp::no_delay(nodelay_));
             c->start();
         } else {
             LWARN(log_) << "Error during accept: " << error;
@@ -133,15 +143,15 @@ class tcp_ssl final: public cppalls::api::application {
 
 public:
     void start(const YAML::Node& conf) override {
-        log_ = cppalls::server::get<logger_t>(
+        log_ = cppalls::app::get<logger_t>(
             conf["logger"].as<std::string>()
         );
 
-        processor_ = cppalls::server::get<connection_processor_t>(
+        processor_ = cppalls::app::get<connection_processor_t>(
             conf["processor"].as<std::string>()
         );
 
-        io_service_ = cppalls::server::get<io_service_t>(
+        io_service_ = cppalls::app::get<io_service_t>(
             conf["io_service"].as<std::string>()
         );
 
@@ -162,10 +172,17 @@ public:
         nodelay_ = conf["nodelay"].as<bool>(true);
 
         context_ = std::make_shared<boost::asio::ssl::context>(boost::asio::ssl::context::sslv23);
+
+        if (conf["password"]) {
+            auto p = conf["password"].as<std::string>("");
+            context_->set_password_callback([p](std::size_t, boost::asio::ssl::context::password_purpose){
+                return p;
+            });
+        }
+
         context_->use_certificate_chain_file(
             conf["certificate-chain-file"].as<std::string>("server.pem")
         );
-
         context_->use_private_key_file(
             conf["private-key-file"].as<std::string>("server.pem")
             , boost::asio::ssl::context::pem

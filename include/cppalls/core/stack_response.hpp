@@ -16,7 +16,7 @@ protected:
 
 public:
     stack_response() noexcept;
-    void put_data(const unsigned char* data, std::size_t size) override;
+    void put_data(const unsigned char* data, std::size_t size, std::size_t pos) override;
 
     unsigned char* begin() noexcept;
     unsigned char* end() noexcept;

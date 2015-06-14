@@ -8,10 +8,10 @@ stack_response::stack_response() noexcept
     : pimpl_()
 {}
 
-void stack_response::put_data(const unsigned char* data, std::size_t size) {
+void stack_response::put_data(const unsigned char* data, std::size_t size, std::size_t pos) {
     const auto old_size = pimpl_->size();
-    pimpl_->resize(old_size + size);
-    std::memcpy(begin() + old_size, data, size);
+    auto it = pos >= old_size ? pimpl_->end() : pimpl_->begin() + size;
+    pimpl_->insert(it, data, data + size);
 }
 
 const unsigned char* stack_response::begin() const noexcept {
