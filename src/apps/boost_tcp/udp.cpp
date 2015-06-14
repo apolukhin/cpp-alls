@@ -8,6 +8,7 @@
 #include <cppalls/api/io_service.hpp>
 #include <cppalls/api/logger.hpp>
 #include <cppalls/api/connection_processor.hpp>
+#include <cppalls/api/processor.hpp>
 #include <memory>
 #include <functional>
 
@@ -54,22 +55,18 @@ public:
     udp_helper(
                 boost::asio::io_service& ,
                 std::shared_ptr<boost::asio::io_service::strand>&& socket_strand,
-                std::shared_ptr<cppalls::detail::udp_socket>&& socket,
-                boost::asio::ip::udp::endpoint&& endpoint)
+                std::shared_ptr<cppalls::detail::udp_socket>&& socket)
         : socket_strand_(std::move(socket_strand))
         , socket_(std::move(socket))
-        , endpoint_(std::move(endpoint))
     {}
 
     template <class... Args>
-    void shutdown(Args&&... /*ignore*/) {
-        endpoint_ = boost::asio::ip::udp::endpoint();
-    }
+    void shutdown(Args&&... /*ignore*/) noexcept
+    {}
 
     template <class... Args>
-    void close(Args&&... /*ignore*/) {
-        endpoint_ = boost::asio::ip::udp::endpoint();
-    }
+    void close(Args&&... /*ignore*/) noexcept
+    {}
 
     template<class MutableBufferSequence, class ReadHandler>
     void async_write_some(const MutableBufferSequence& buffer, ReadHandler&& handler) {
@@ -84,6 +81,10 @@ public:
             buffer, endpoint_, socket_strand_->wrap(std::forward<ReadHandler>(handler))
         );
     }
+
+    std::size_t available() {
+        return socket_->available();
+    }
 };
 
 
@@ -97,21 +98,27 @@ class udp_connection_fast final: public network::async_connection_fast<udp_helpe
 
 public:
     static std::shared_ptr<udp_connection_fast> create(
-        std::shared_ptr<cppalls::api::application> parent,
+        std::shared_ptr<cppalls::api::application>&& parent,
         std::shared_ptr<connection_processor_t> processor,
         std::shared_ptr<io_service_t> io_serv,
         // connection related stuff:
         std::shared_ptr<boost::asio::io_service::strand> socket_strand,
-        std::shared_ptr<cppalls::detail::udp_socket> socket,
-        boost::asio::ip::udp::endpoint endpoint)
+        std::shared_ptr<cppalls::detail::udp_socket>&& socket)
 {
         return std::allocate_shared<udp_connection_fast>(
             cppalls::detail::shared_allocator_friend<udp_connection_fast>(),
             std::move(parent),
             std::move(processor),
             std::move(io_serv),
-            std::move(socket_strand), std::move(socket), std::move(endpoint)
+            std::move(socket_strand), std::move(socket)
         );
+    }
+
+    cppalls::api::processor& processor() noexcept {
+        return *std::static_pointer_cast<cppalls::api::processor>(processor_);
+    }
+
+    void close() noexcept override {
     }
 };
 
@@ -127,13 +134,8 @@ class udp final: public cppalls::api::application {
     char                                                tmp_buf_[1];
 
     // no mutex required, because we ensure in logic that only single acceptor thread exists and 
-    // operates on connections_ or allocator_
-    std::unordered_map<
-        boost::asio::ip::udp::endpoint,
-        std::weak_ptr<udp_connection_fast>,
-        endpoint_hash
-    >   connections_;
-    network::handler_allocator allocator_; 
+    // operates on allocator_
+    cppalls::slab_allocator allocator_;
 
     std::shared_ptr<udp> shared_from_this() {
         return std::static_pointer_cast<udp>(cppalls::api::application::shared_from_this());
@@ -156,50 +158,46 @@ class udp final: public cppalls::api::application {
         );
     }
 
-    void process_incoming_packet(const boost::system::error_code& error) {
-        if (error){
+    void on_accpet(const boost::system::error_code& error, std::size_t /*bytes_received*/, std::shared_ptr<cppalls::detail::udp_socket>& socket_) {
+        if (error) {
             LWARN(log_) << "Error during UDP accept: " << error;
+
+            if (error != boost::asio::error::operation_aborted) {
+                accept();
+            }
+
             return;
         }
 
-        const auto it = connections_.find(new_endpoint_);
-        if (it == connections_.cend() || !it->second.lock()) {
-            auto c = udp_connection_fast::create(cppalls::api::application::shared_from_this(), processor_, io_service_, socket_strand_, socket_, new_endpoint_);
-            std::weak_ptr<udp_connection_fast> weak(c);
-            connections_.insert(std::make_pair(
-                std::move(new_endpoint_),
-                std::move(weak)
-            ));
+        // We do not start accepting right now, instead we are processing the data for connection
+        auto c = udp_connection_fast::create(cppalls::api::application::shared_from_this(), processor_, io_service_, socket_strand_, std::move(socket_));
 
-            // We do not whant to block accepting data from different endpoints
-            // while this one is being processed, so posting a task.
-            auto p = processor_;
-            io_service_->io_service().post(
-                [p, c](){ (*p)(*c); }
-            );
-        }
+        const std::size_t available = c->socket().available();
+        auto self = shared_from_this();
+        c->async_read(
+            [self, available](cppalls::connection& c, const std::error_code& e) {
+                //if (e != boost::asio::error::operation_aborted) {
+                    self->accept();
+                //}
 
-        // We have datagram for an already known endpoint. Here's a good place to do some cleanup
-        // before accepting next datagram. This will give some time for a processor_ to take care of connection
-        for (auto it = connections_.begin(); it != connections_.end(); /* intentional: no increment for `it`! */) {
-            if (!it->second.lock()) {
-                it = connections_.erase(it);
-            } else {
-                ++ it;
-            }
-        }
-    }
+                if (e) {
+                    LERROR(self->log_) << "Error during UDP receive: " << e.message();
+                    return;
+                }
 
-    void on_accpet(const boost::system::error_code& error, std::size_t /*bytes_received*/, std::shared_ptr<cppalls::detail::udp_socket>& /*ignore*/) {
-        try {
-            process_incoming_packet(error);
-        } catch (...) {
-            LERROR(log_) << "Error during UDP accept: " << boost::current_exception_diagnostic_information();
-        }
+                // We are not using `processor_` from `self`, because reload() could happend during `async_read`
+                // so self->processor_ != c.processor_
+                unsigned int size;
+                c >> size;
+                if (available != size) {
+                    LERROR(self->log_) << "Error during UDP receive: received message size is " << available << " but required size is " << size;
+                    return;
+                }
 
-        if (error != boost::asio::error::operation_aborted) {
-            accept();
-        }
+                static_cast<udp_connection_fast&>(c).processor()(c.request(), c.response());
+            }, 
+            available
+        );
     }
 
     void reset_ptrs_common() noexcept {
@@ -208,20 +206,25 @@ class udp final: public cppalls::api::application {
         socket_strand_.reset();
         socket_.reset();
         io_service_.reset();
-        connections_.clear();
     }
 
 public:
     void start(const YAML::Node& conf) override {
-        log_ = cppalls::server::get<logger_t>(
+        log_ = cppalls::app::get<logger_t>(
             conf["logger"].as<std::string>()
         );
 
-        processor_ = cppalls::server::get<connection_processor_t>(
+        processor_ = cppalls::app::get<connection_processor_t>(
             conf["processor"].as<std::string>()
         );
 
-        io_service_ = cppalls::server::get<io_service_t>(
+        if (!std::dynamic_pointer_cast<cppalls::api::processor>(processor_)) {
+            boost::throw_exception(std::logic_error(
+                "`processor` application for `udp_acceptor` must derive from cppalls::api::processor"
+            ));
+        }
+
+        io_service_ = cppalls::app::get<io_service_t>(
             conf["io_service"].as<std::string>()
         );
 

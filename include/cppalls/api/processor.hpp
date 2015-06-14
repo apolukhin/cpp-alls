@@ -9,7 +9,7 @@ class CPPALLS_EXPORT processor : public connection_processor {
 public:
     virtual void operator()(request&, response&) = 0;
 
-    virtual void operator()(connection&) final;
+    virtual void operator()(connection&) final {};
 };
 
 }} // namespace cppalls::api

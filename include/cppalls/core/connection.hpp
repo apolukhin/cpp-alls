@@ -25,7 +25,7 @@ public:
     typedef std::function<void(connection&, const std::error_code&)> callback_t;
 
     virtual ~connection() {}
-    virtual api::connection_processor& processor() = 0;
+    virtual api::connection_processor& connection_processor() noexcept = 0;
 
     virtual void close() = 0;
     virtual cppalls::request& request() noexcept = 0;
@@ -92,13 +92,13 @@ private:
     inline void async_read_generic(Function function, const Arg0& arg0, const Arg1& arg1, std::size_t size) {
         static_assert(
             std::is_base_of<cppalls::api::connection_processor, Processor>::value,
-            "Function overload `connection::async_read(member pointer function, size)` works only if meber pointer function belongs to the class retuned by `processor()`"
+            "Function overload `connection::async_read(member pointer function, size)` works only if meber pointer function belongs to the class retuned by `connection_processor()`"
         );
 
-        Processor* p = dynamic_cast<Processor*>(&processor());
+        Processor* p = dynamic_cast<Processor*>(&connection_processor());
         if (!p) {
             throw std::logic_error(
-                "Function overload `connection::async_read(member pointer function, size)` works only if meber pointer function belongs to the class retuned by `processor()`"
+                "Function overload `connection::async_read(member pointer function, size)` works only if meber pointer function belongs to the class retuned by `connection_processor()`"
             );
         }
 
@@ -112,13 +112,13 @@ private:
     inline void async_write_generic(Function function, const Arg0& arg0, const Arg1& arg1) {
         static_assert(
             std::is_base_of<cppalls::api::connection_processor, Processor>::value,
-            "Function overload `connection::async_write(member pointer function)` works only if meber pointer function belongs to the class retuned by `processor()`"
+            "Function overload `connection::async_write(member pointer function)` works only if meber pointer function belongs to the class retuned by `connection_processor()`"
         );
 
-        Processor* p = dynamic_cast<Processor*>(&processor());
+        Processor* p = dynamic_cast<Processor*>(&connection_processor());
         if (!p) {
             throw std::logic_error(
-                "Function overload `connection::async_write(member pointer function)` works only if meber pointer function belongs to the class retuned by `processor()`"
+                "Function overload `connection::async_write(member pointer function)` works only if meber pointer function belongs to the class retuned by `connection_processor()`"
             );
         }
 

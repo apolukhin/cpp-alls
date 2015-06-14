@@ -104,7 +104,7 @@ protected:
     {}
 
 public:
-    cppalls::api::connection_processor& processor() override {
+    cppalls::api::connection_processor& connection_processor() noexcept override {
         return *processor_;
     }
 
