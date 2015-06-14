@@ -104,6 +104,10 @@ protected:
     {}
 
 public:
+    cppalls::api::connection_processor& processor() override {
+        return *processor_;
+    }
+
     void async_write(cppalls::connection::callback_t&& cb) override {
         boost::asio::async_write(
             socket(),

@@ -1,6 +1,7 @@
 #include "cppalls/api/connection_processor.hpp"
 #include <cstring>
 #include <functional>
+#include <system_error>
 
 
 // MinGW related workaround
@@ -39,14 +40,12 @@ public:
         T val;
         c >> val;
         c << val;
-        c.async_write(
-            std::bind(&this_t::on_write, this, std::placeholders::_1, std::placeholders::_2)
-        );
+        c.async_write(&this_t::on_write);
     }
 
     void operator()(connection& c) override {
         c.async_read(
-            std::bind(&this_t::on_read, this, std::placeholders::_1, std::placeholders::_2),
+            std::bind(&this_t::on_read, this, place_connection, place_error),
             sizeof(T)
         );
     }
@@ -84,9 +83,7 @@ public:
 
         std::string s(c.request().begin(), c.request().end());
         c << s;
-        c.async_write(
-            std::bind(&this_t::on_write, this, std::placeholders::_1, std::placeholders::_2)
-        );
+        c.async_write(&this_t::on_write);
     }
 
     void on_read1(connection& c, const std::error_code& ec) {
@@ -97,17 +94,11 @@ public:
 
         unsigned int size;
         c >> size;
-        c.async_read(
-            std::bind(&this_t::on_read2, this, std::placeholders::_1, std::placeholders::_2),
-            size
-        );
+        c.async_read(&this_t::on_read2, size);
     }
 
     void operator()(connection& c) override {
-        c.async_read(
-            std::bind(&this_t::on_read1, this, std::placeholders::_1, std::placeholders::_2),
-            sizeof(unsigned int)
-        );
+        c.async_read(&this_t::on_read1, sizeof(unsigned int));
     }
 
     void start(const YAML::Node& /*conf*/) override {}

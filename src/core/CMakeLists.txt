@@ -28,6 +28,7 @@ add_library(cppalls_core SHARED
     ../../include/cppalls/api/processor.hpp
     ../../include/cppalls/api/connection_processor.hpp
 
+    connection_processor.cpp
     server.cpp
     cpp_logger.cpp
     cpp_logger.hpp
