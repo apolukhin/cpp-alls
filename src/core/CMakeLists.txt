@@ -11,6 +11,8 @@ add_library(cppalls_core SHARED
     ../../include/cppalls/core/stack_request.hpp
     ../../include/cppalls/core/response.hpp
     ../../include/cppalls/core/stack_response.hpp
+    ../../include/cppalls/core/slab_allocator.hpp
+    ../../include/cppalls/core/slab_allocator_ref.hpp
     ../../include/cppalls/core/connection.hpp
     ../../include/cppalls/core/tcp_connection.hpp
     ../../include/cppalls/core/tcp_ssl_connection.hpp

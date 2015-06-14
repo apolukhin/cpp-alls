@@ -27,10 +27,10 @@ namespace detail {
     protected:
         cppalls::stack_request                  request_;
         cppalls::stack_response                 response_;
-        network::handler_allocator              allocator_;
+        cppalls::slab_allocator                 allocator_;
 
     public:
-        inline network::handler_allocator& allocator() noexcept {
+        inline cppalls::slab_allocator& allocator() noexcept {
             return allocator_;
         }
 

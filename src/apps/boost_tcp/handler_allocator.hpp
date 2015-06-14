@@ -4,59 +4,9 @@
 #include <new>
 #include <type_traits>
 #include <algorithm>
-
+#include <cppalls/core/slab_allocator.hpp>
 
 namespace network {
-
-// Class to manage the memory to be used for handler-based custom allocation.
-// It contains block s of memory which may be returned for allocation
-// requests. If the memory blocks are in use when an allocation request is made, the
-// allocator delegates allocation to the global heap.
-class handler_allocator {
-public:
-    inline handler_allocator() noexcept {
-        std::fill(in_use_, in_use_ + storages_count_, false);
-    }
-
-    handler_allocator(const handler_allocator&) = delete;
-    handler_allocator& operator=(const handler_allocator&) = delete;
-
-    inline void* allocate(std::size_t size) {
-        if (size <= sizeof(storage_t)) {
-            const auto end = in_use_ + storages_count_;
-            const auto it = std::find(in_use_, end, false);
-            if (it != end) {
-                *it = true;
-                return storages_ + (it - in_use_);
-            }
-        }
-
-        return ::operator new(size);
-    }
-
-    inline void deallocate(void* pointer) noexcept {
-        for (std::size_t i = 0; i < storages_count_; ++i) {
-            if (storages_ + i == pointer) {
-                in_use_[i] = false;
-                return;
-            }
-        }
-
-        ::operator delete(pointer);
-    }
-
-private:
-    static const std::size_t storages_min_size_ = 512u;
-    static const std::size_t storages_count_ = 2u;
-
-    // Storage space used for handler-based custom memory allocation.
-    typedef typename std::aligned_storage<storages_min_size_>::type storage_t;
-    storage_t storages_[storages_count_];
-
-    // Whether the handler-based custom allocation storage has been used.
-    bool in_use_[storages_count_];
-};
-
 
 // Wrapper class template for handler objects to allow handler memory
 // allocation to be customised. Calls to operator() are forwarded to the
@@ -65,7 +15,7 @@ template <typename Handler>
 class custom_alloc_handler {
 public:
     template <class H>
-    inline custom_alloc_handler(handler_allocator& a, H&& h)
+    inline custom_alloc_handler(cppalls::slab_allocator& a, H&& h)
         : allocator_(a)
         , handler_(std::forward<H>(h))
     {}
@@ -84,13 +34,13 @@ public:
     }
 
 private:
-    handler_allocator& allocator_;
+    cppalls::slab_allocator& allocator_;
     Handler handler_;
 };
 
 // Helper function to wrap a handler object to add custom allocation.
 template <typename Handler>
-inline custom_alloc_handler<typename std::remove_reference<Handler>::type> make_custom_alloc_handler(handler_allocator& a, Handler&& h) {
+inline custom_alloc_handler<typename std::remove_reference<Handler>::type> make_custom_alloc_handler(cppalls::slab_allocator& a, Handler&& h) {
     return custom_alloc_handler<typename std::remove_reference<Handler>::type>(a, std::forward<Handler>(h));
 }
 
